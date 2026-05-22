@@ -48,6 +48,23 @@ pub fn set_state(
         if state == AppState::Idle {
             let _ = overlay_win.hide();
         } else {
+            // Dynamically position the overlay window in the bottom-right corner of the primary screen
+            if let Some(monitor) = overlay_win.primary_monitor().ok().flatten() {
+                let screen_size = monitor.size();
+                let scale_factor = monitor.scale_factor();
+                
+                // Base dimensions in logical units: width 320, height 90 (matches tauri.conf.json)
+                let pad_x = (24.0 * scale_factor) as u32;
+                let pad_y = (60.0 * scale_factor) as u32; // stay above typical taskbar
+                
+                let win_width = (320.0 * scale_factor) as u32;
+                let win_height = (90.0 * scale_factor) as u32;
+                
+                let x = screen_size.width.saturating_sub(win_width).saturating_sub(pad_x);
+                let y = screen_size.height.saturating_sub(win_height).saturating_sub(pad_y);
+                
+                let _ = overlay_win.set_position(tauri::PhysicalPosition::new(x, y));
+            }
             let _ = overlay_win.show();
             let _ = overlay_win.set_focus();
         }
