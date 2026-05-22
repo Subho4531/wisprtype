@@ -83,3 +83,30 @@ pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_app_settings_default() {
+        let settings = AppSettings::default();
+        assert_eq!(settings.hotkey, "Ctrl + Shift + Space");
+        assert!(settings.launch_on_startup);
+        assert!(settings.paste_immediately);
+        assert_eq!(settings.gain, 75);
+        assert_eq!(settings.whisper_model, "base");
+        assert_eq!(settings.formatting_engine, "cloud");
+    }
+
+    #[test]
+    fn test_app_settings_json_serialization() {
+        let settings = AppSettings::default();
+        let serialized = serde_json::to_string(&settings).unwrap();
+        let deserialized: AppSettings = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.hotkey, settings.hotkey);
+        assert_eq!(deserialized.gain, settings.gain);
+        assert_eq!(deserialized.whisper_model, settings.whisper_model);
+    }
+}
+
