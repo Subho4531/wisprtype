@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::fs::{self, File};
-use std::io::{Write, Read};
+use std::io::Write;
 use tauri::{AppHandle, Emitter};
 use futures_util::StreamExt;
 
@@ -38,7 +38,17 @@ struct DownloadProgressPayload {
 pub async fn ensure_model_exists(app: &AppHandle, model_size: &str) -> Result<PathBuf, String> {
     let model_path = get_model_path(model_size)?;
     if model_path.exists() {
-        return Ok(model_path);
+        if let Ok(metadata) = fs::metadata(&model_path) {
+            // Whisper ggml model bin files should be at least 70MB (tiny is ~75MB, base is ~140MB)
+            if metadata.len() > 70 * 1024 * 1024 {
+                return Ok(model_path);
+            } else {
+                eprintln!("Existing model file {:?} is too small ({:.2} MB), assuming corrupt and redownloading.", model_path, metadata.len() as f64 / 1024.0 / 1024.0);
+                let _ = fs::remove_file(&model_path);
+            }
+        } else {
+            return Ok(model_path);
+        }
     }
 
     println!("Model not found at {:?}. Starting automatic download...", model_path);
@@ -74,8 +84,9 @@ pub async fn ensure_model_exists(app: &AppHandle, model_size: &str) -> Result<Pa
         .content_length()
         .ok_or_else(|| "Failed to get model content length".to_string())?;
 
-    let mut file = File::create(&model_path)
-        .map_err(|e| format!("Failed to create model file: {}", e))?;
+    let tmp_path = model_path.with_extension("tmp");
+    let mut file = File::create(&tmp_path)
+        .map_err(|e| format!("Failed to create temporary model file: {}", e))?;
 
     let mut downloaded: u64 = 0;
     let mut stream = response.bytes_stream();
@@ -86,7 +97,7 @@ pub async fn ensure_model_exists(app: &AppHandle, model_size: &str) -> Result<Pa
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.map_err(|e| format!("Error during model chunk download: {}", e))?;
         file.write_all(&chunk)
-            .map_err(|e| format!("Failed to write chunk to model file: {}", e))?;
+            .map_err(|e| format!("Failed to write chunk to temporary model file: {}", e))?;
         
         downloaded += chunk.len() as u64;
         let percent = ((downloaded as f64 / total_size as f64) * 100.0).round() as i32;
@@ -103,7 +114,13 @@ pub async fn ensure_model_exists(app: &AppHandle, model_size: &str) -> Result<Pa
         }
     }
 
-    file.flush().map_err(|e| format!("Failed to flush model file: {}", e))?;
+    file.flush().map_err(|e| format!("Failed to flush temporary model file: {}", e))?;
+    drop(file); // Release handle lock before rename
+
+    // Atomically rename temporary file to target path
+    fs::rename(&tmp_path, &model_path)
+        .map_err(|e| format!("Failed to finalize downloaded model file: {}", e))?;
+
     println!("Model downloaded successfully to {:?}", model_path);
 
     // Final event: download finished

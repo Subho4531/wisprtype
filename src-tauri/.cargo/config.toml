@@ -1,3 +1,4 @@
 [env]
-WHISPER_DONT_GENERATE_BINDINGS = "1"
-CMAKE = "C:\\Program Files\\CMake\\bin\\cmake.exe"
+CMAKE = 'C:\Program Files\CMake\bin\cmake.exe'
+LIBCLANG_PATH = 'C:\users\subho\appdata\local\programs\python\python310\lib\site-packages\clang\native'
+BINDGEN_EXTRA_CLANG_ARGS = '-I"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include" -I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um"'

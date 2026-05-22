@@ -5,28 +5,40 @@ pub fn clean_text(text: &str) -> String {
         return String::new();
     }
 
-    // Step 1: Remove common spoken filler words
-    let fillers = [" uh, ", " uh ", " um, ", " um ", " err, ", " err ", " ah, ", " ah ", " like, you know, "];
+    // Step 1: Remove multi-word spoken filler phrases case-insensitively
+    let phrases = ["like, you know,", "like you know, ", "like you know "];
     let mut cleaned = trimmed.to_string();
-    
-    // Case-insensitive filler word removal
-    for filler in fillers {
-        let clean_filler = filler.trim_matches(',');
-        // Simple case insensitive replace
-        cleaned = replace_case_insensitive(&cleaned, clean_filler, " ");
+    for phrase in phrases {
+        cleaned = replace_case_insensitive(&cleaned, phrase, " ");
     }
 
-    // Step 2: Normalize spaces
-    cleaned = cleaned.split_whitespace().collect::<Vec<&str>>().join(" ");
+    // Step 2: Split into words and filter out single-word filler words case-insensitively
+    let single_fillers = ["uh", "um", "err", "ah"];
+    let words: Vec<&str> = cleaned.split_whitespace().collect();
+    let mut filtered_words = Vec::new();
 
-    // Step 3: Capitalize the first letter
+    for word in words {
+        // Strip surrounding punctuation temporarily to check if it's a filler
+        let cleaned_word = word.trim_matches(|c: char| c == ',' || c == '.' || c == '?' || c == '!' || c == ';');
+        let lower_word = cleaned_word.to_lowercase();
+        
+        if single_fillers.contains(&lower_word.as_str()) {
+            continue;
+        }
+        filtered_words.push(word);
+    }
+
+    // Step 3: Reassemble the words
+    cleaned = filtered_words.join(" ");
+
+    // Step 4: Capitalize the first letter
     let mut chars = cleaned.chars();
     cleaned = match chars.next() {
         None => String::new(),
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
     };
 
-    // Step 4: Ensure sentence ends with punctuation (. or ? or !)
+    // Step 5: Ensure sentence ends with punctuation (. or ? or !)
     if let Some(last_char) = cleaned.chars().last() {
         if last_char != '.' && last_char != '?' && last_char != '!' && last_char != ',' {
             cleaned.push('.');

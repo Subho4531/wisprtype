@@ -8,18 +8,21 @@ pub mod injector;
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, State};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, shortcut| {
-            println!("Global shortcut triggered: {:?}", shortcut);
-            let state_container = app.state::<commands::StateContainer>();
-            let recorder = app.state::<audio::AudioRecorder>();
-            if let Err(e) = commands::toggle_recording_pipeline(app.clone(), state_container, recorder) {
-                eprintln!("Failed to toggle recording from hotkey: {}", e);
+        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, shortcut, event| {
+            use tauri_plugin_global_shortcut::ShortcutState;
+            if event.state == ShortcutState::Pressed {
+                println!("Global shortcut triggered: {:?}", shortcut);
+                let state_container = app.state::<commands::StateContainer>();
+                let recorder = app.state::<audio::AudioRecorder>();
+                if let Err(e) = commands::toggle_recording_pipeline(app.clone(), state_container, recorder) {
+                    eprintln!("Failed to toggle recording from hotkey: {}", e);
+                }
             }
         }).build())
         // Register managed states

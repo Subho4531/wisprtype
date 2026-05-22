@@ -158,26 +158,27 @@ pub fn toggle_recording_pipeline(
         }
         AppState::Recording => {
             // Transition state to Transcribing (Overlay UI displays spinner/status pill)
-            set_state(app.clone(), state_container.clone(), "Transcribing".to_string(), Some("Processing audio...".to_string()))?;
+            set_state(app.clone(), state_container, "Transcribing".to_string(), Some("Processing audio...".to_string()))?;
 
-            let recorder_clone = recorder.clone();
             let app_clone = app.clone();
-            let state_container_clone = state_container.clone();
 
             // Run intensive recording processing asynchronously to avoid blocking the OS main thread
             tauri::async_runtime::spawn(async move {
-                match process_recording(app_clone.clone(), recorder_clone).await {
+                match process_recording(app_clone.clone()).await {
                     Ok(text) => {
                         println!("Transcription pipeline successfully completed! Text: {}", text);
-                        let _ = set_state(app_clone.clone(), state_container_clone.clone(), "Idle".to_string(), None);
+                        let state_container_inner = app_clone.state::<StateContainer>();
+                        let _ = set_state(app_clone.clone(), state_container_inner, "Idle".to_string(), None);
                     }
                     Err(e) => {
                         eprintln!("Transcription pipeline failed: {}", e);
-                        let _ = set_state(app_clone.clone(), state_container_clone.clone(), "Error".to_string(), Some(e));
+                        let state_container_err = app_clone.state::<StateContainer>();
+                        let _ = set_state(app_clone.clone(), state_container_err, "Error".to_string(), Some(e));
                         
                         // Keep error visible for 3 seconds before gracefully reverting to Idle
                         std::thread::sleep(std::time::Duration::from_secs(3));
-                        let _ = set_state(app_clone, state_container_clone, "Idle".to_string(), None);
+                        let state_container_idle = app_clone.state::<StateContainer>();
+                        let _ = set_state(app_clone.clone(), state_container_idle, "Idle".to_string(), None);
                     }
                 }
             });
@@ -193,9 +194,9 @@ pub fn toggle_recording_pipeline(
 
 async fn process_recording(
     app: AppHandle,
-    recorder: State<'_, AudioRecorder>,
 ) -> Result<String, String> {
     // 1. Consume raw recorded mono 16kHz audio buffer
+    let recorder = app.state::<AudioRecorder>();
     let samples = recorder.stop_recording()?;
     if samples.is_empty() {
         return Err("Audio signal was too short or empty".to_string());

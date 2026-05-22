@@ -10,7 +10,7 @@ pub fn transcribe(model_path: &Path, samples: &[f32]) -> Result<String, String> 
     println!("Loading offline Whisper context from {:?}...", model_path);
     
     // Create the Whisper context
-    let ctx = WhisperContext::new(model_path_str)
+    let ctx = WhisperContext::new_with_params(model_path_str, Default::default())
         .map_err(|e| format!("Failed to create Whisper context: {}", e))?;
 
     // Create a new parameter set using Greedy sampling strategy
@@ -34,7 +34,7 @@ pub fn transcribe(model_path: &Path, samples: &[f32]) -> Result<String, String> 
 
     // Execute the transcription pipeline
     state
-        .run(&params, samples)
+        .full(params, samples)
         .map_err(|e| format!("Failed to execute Whisper model run: {}", e))?;
 
     // Aggregate transcription segments

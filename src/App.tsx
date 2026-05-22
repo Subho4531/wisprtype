@@ -50,10 +50,13 @@ function App() {
   useEffect(() => {
     try {
       const appWindow = getCurrentWindow();
-      setWindowLabel(appWindow.label);
+      const label = appWindow.label;
+      setWindowLabel(label);
+      document.documentElement.className = `window-${label}`;
     } catch (e) {
       console.error("Tauri environment not detected, running in web mock mode:", e);
       setWindowLabel("main"); // Fallback to settings main window
+      document.documentElement.className = "window-main";
     }
   }, []);
 
