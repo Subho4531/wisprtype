@@ -45,7 +45,7 @@ pub fn set_state(
 
     // Toggle Overlay window visibility based on state
     if let Some(overlay_win) = app.get_webview_window("overlay") {
-        if state == AppState::Idle {
+        if state == AppState::Idle || state == AppState::Pasting {
             let _ = overlay_win.hide();
         } else {
             // Dynamically position the overlay window in the bottom-right corner of the primary screen
@@ -66,7 +66,6 @@ pub fn set_state(
                 let _ = overlay_win.set_position(tauri::PhysicalPosition::new(x, y));
             }
             let _ = overlay_win.show();
-            let _ = overlay_win.set_focus();
         }
     }
 

@@ -10,16 +10,27 @@ pub fn copy_and_paste(text: &str) -> Result<(), String> {
     }
 
     println!("Initializing clipboard context...");
-    let mut clipboard = arboard::Clipboard::new()
-        .map_err(|e| format!("Clipboard initialization error: {}", e))?;
+    let mut clipboard = match arboard::Clipboard::new() {
+        Ok(c) => c,
+        Err(e) => {
+            println!("Clipboard init failed ({}), retrying...", e);
+            sleep(Duration::from_millis(50));
+            arboard::Clipboard::new()
+                .map_err(|e2| format!("Clipboard initialization error: {}", e2))?
+        }
+    };
 
     println!("Writing formatted text to system clipboard...");
-    clipboard
-        .set_text(text.to_string())
-        .map_err(|e| format!("Failed to set clipboard text: {}", e))?;
+    if let Err(e) = clipboard.set_text(text.to_string()) {
+        println!("Clipboard set text failed ({}), retrying...", e);
+        sleep(Duration::from_millis(50));
+        clipboard.set_text(text.to_string())
+            .map_err(|e2| format!("Failed to set clipboard text: {}", e2))?;
+    }
 
-    // Allow a small microsecond-delay for the OS clipboard buffer to update and settle
-    sleep(Duration::from_millis(100));
+    // Allow a small delay for the OS clipboard buffer to update and settle,
+    // and for the overlay window to hide and restore focus to the target app.
+    sleep(Duration::from_millis(150));
 
     println!("Simulating OS paste keystroke (Ctrl+V/Cmd+V)...");
     
