@@ -12,9 +12,24 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-app",
+        "label": "main",
+        "title": "Wisprtype V1 - Settings",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": false,
+        "resizable": true
+      },
+      {
+        "label": "overlay",
+        "title": "Wisprtype Status",
+        "width": 320,
+        "height": 90,
+        "visible": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "skipTaskbar": true,
+        "resizable": false
       }
     ],
     "security": {
