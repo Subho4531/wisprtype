@@ -13,6 +13,13 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, shortcut, event| {
             use tauri_plugin_global_shortcut::ShortcutState;
@@ -87,9 +94,18 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Hide the main settings window on startup to run as background tray app
+            // Show the main settings window on startup
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.hide();
+                let _ = window.show();
+                
+                // Intercept window close to hide instead of destroy, allowing the tray to reopen it
+                let window_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_clone.hide();
+                    }
+                });
             }
 
             // Load settings and register the global hotkey
