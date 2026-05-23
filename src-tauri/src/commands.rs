@@ -14,6 +14,30 @@ pub enum AppState {
 
 pub struct StateContainer(pub Mutex<AppState>);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HotkeyMode {
+    Idle,
+    Holding,
+    WaitingForDoubleTap,
+    ToggledOn,
+}
+
+pub struct HotkeyData {
+    pub mode: HotkeyMode,
+    pub last_pressed: Option<std::time::Instant>,
+}
+
+impl Default for HotkeyData {
+    fn default() -> Self {
+        Self {
+            mode: HotkeyMode::Idle,
+            last_pressed: None,
+        }
+    }
+}
+
+pub struct HotkeyState(pub Mutex<HotkeyData>);
+
 #[tauri::command]
 pub fn get_state(state_container: State<'_, StateContainer>) -> String {
     let state = state_container.0.lock().unwrap();
@@ -153,10 +177,18 @@ pub fn toggle_recording(
     state_container: State<'_, StateContainer>,
     recorder: State<'_, AudioRecorder>,
 ) -> Result<(), String> {
-    toggle_recording_pipeline(app, state_container, recorder)
+    let current_state = {
+        let state = state_container.0.lock().unwrap();
+        state.clone()
+    };
+    if current_state == AppState::Idle {
+        start_recording_pipeline(app, state_container, recorder)
+    } else {
+        stop_recording_pipeline(app, state_container, recorder)
+    }
 }
 
-pub fn toggle_recording_pipeline(
+pub fn start_recording_pipeline(
     app: AppHandle,
     state_container: State<'_, StateContainer>,
     recorder: State<'_, AudioRecorder>,
@@ -166,46 +198,147 @@ pub fn toggle_recording_pipeline(
         state.clone()
     };
 
-    match current_state {
-        AppState::Idle => {
-            // Start recording audio stream
-            recorder.start_recording()?;
-            set_state(app, state_container, "Recording".to_string(), None)?;
-        }
-        AppState::Recording => {
-            // Transition state to Transcribing (Overlay UI displays spinner/status pill)
-            set_state(app.clone(), state_container, "Transcribing".to_string(), Some("Processing audio...".to_string()))?;
-
-            let app_clone = app.clone();
-
-            // Run intensive recording processing asynchronously to avoid blocking the OS main thread
-            tauri::async_runtime::spawn(async move {
-                match process_recording(app_clone.clone()).await {
-                    Ok(text) => {
-                        println!("Transcription pipeline successfully completed! Text: {}", text);
-                        let state_container_inner = app_clone.state::<StateContainer>();
-                        let _ = set_state(app_clone.clone(), state_container_inner, "Idle".to_string(), None);
-                    }
-                    Err(e) => {
-                        eprintln!("Transcription pipeline failed: {}", e);
-                        let state_container_err = app_clone.state::<StateContainer>();
-                        let _ = set_state(app_clone.clone(), state_container_err, "Error".to_string(), Some(e));
-                        
-                        // Keep error visible for 3 seconds before gracefully reverting to Idle
-                        std::thread::sleep(std::time::Duration::from_secs(3));
-                        let state_container_idle = app_clone.state::<StateContainer>();
-                        let _ = set_state(app_clone.clone(), state_container_idle, "Idle".to_string(), None);
-                    }
-                }
-            });
-        }
-        _ => {
-            // If in processing or error state, click to interrupt and force return to Idle
-            let _ = recorder.stop_recording();
-            set_state(app, state_container, "Idle".to_string(), None)?;
-        }
+    if current_state == AppState::Idle {
+        // Start recording audio stream
+        recorder.start_recording()?;
+        set_state(app, state_container, "Recording".to_string(), None)?;
     }
     Ok(())
+}
+
+pub fn stop_recording_pipeline(
+    app: AppHandle,
+    state_container: State<'_, StateContainer>,
+    recorder: State<'_, AudioRecorder>,
+) -> Result<(), String> {
+    let current_state = {
+        let state = state_container.0.lock().unwrap();
+        state.clone()
+    };
+
+    if current_state == AppState::Recording {
+        // Transition state to Transcribing (Overlay UI displays spinner/status pill)
+        set_state(app.clone(), state_container, "Transcribing".to_string(), Some("Processing audio...".to_string()))?;
+
+        let app_clone = app.clone();
+
+        // Run intensive recording processing asynchronously to avoid blocking the OS main thread
+        tauri::async_runtime::spawn(async move {
+            match process_recording(app_clone.clone()).await {
+                Ok(text) => {
+                    println!("Transcription pipeline successfully completed! Text: {}", text);
+                    let state_container_inner = app_clone.state::<StateContainer>();
+                    let _ = set_state(app_clone.clone(), state_container_inner, "Idle".to_string(), None);
+                }
+                Err(e) => {
+                    eprintln!("Transcription pipeline failed: {}", e);
+                    let state_container_err = app_clone.state::<StateContainer>();
+                    let _ = set_state(app_clone.clone(), state_container_err, "Error".to_string(), Some(e));
+                    
+                    // Keep error visible for 3 seconds before gracefully reverting to Idle
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    let state_container_idle = app_clone.state::<StateContainer>();
+                    let _ = set_state(app_clone.clone(), state_container_idle, "Idle".to_string(), None);
+                }
+            }
+        });
+    } else if current_state != AppState::Idle {
+        // If in processing or error state, click to interrupt and force return to Idle
+        let _ = recorder.stop_recording();
+        set_state(app, state_container, "Idle".to_string(), None)?;
+    }
+    Ok(())
+}
+
+pub fn abort_recording(
+    app: AppHandle,
+    state_container: State<'_, StateContainer>,
+    recorder: State<'_, AudioRecorder>,
+) -> Result<(), String> {
+    let _ = recorder.stop_recording();
+    set_state(app, state_container, "Idle".to_string(), None)?;
+    Ok(())
+}
+
+pub fn hotkey_pressed(app: AppHandle) {
+    let hotkey_state = app.state::<HotkeyState>();
+    let state_container = app.state::<StateContainer>();
+    let recorder = app.state::<AudioRecorder>();
+    
+    let mut data = hotkey_state.0.lock().unwrap();
+    let now = std::time::Instant::now();
+    data.last_pressed = Some(now);
+
+    match data.mode {
+        HotkeyMode::Idle => {
+            data.mode = HotkeyMode::Holding;
+            let _ = start_recording_pipeline(app.clone(), state_container, recorder);
+        }
+        HotkeyMode::WaitingForDoubleTap => {
+            data.mode = HotkeyMode::ToggledOn;
+            // Recording is already ongoing, do nothing.
+        }
+        HotkeyMode::ToggledOn => {
+            // It's a single press to stop toggle mode.
+            data.mode = HotkeyMode::Idle;
+            let _ = stop_recording_pipeline(app.clone(), state_container, recorder);
+        }
+        HotkeyMode::Holding => {
+            // Should not happen, but if it does, ignore
+        }
+    }
+}
+
+pub fn hotkey_released(app: AppHandle) {
+    let hotkey_state = app.state::<HotkeyState>();
+    let state_container = app.state::<StateContainer>();
+    let recorder = app.state::<AudioRecorder>();
+    
+    let mut data = hotkey_state.0.lock().unwrap();
+    let now = std::time::Instant::now();
+
+    match data.mode {
+        HotkeyMode::Holding => {
+            if let Some(pressed_at) = data.last_pressed {
+                let duration = now.duration_since(pressed_at);
+                if duration.as_millis() > 400 {
+                    // Push to talk completed
+                    data.mode = HotkeyMode::Idle;
+                    let _ = stop_recording_pipeline(app.clone(), state_container, recorder);
+                } else {
+                    // Short tap, might be a double tap
+                    data.mode = HotkeyMode::WaitingForDoubleTap;
+                    
+                    // Spawn timeout task
+                    let app_clone = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        // wait a bit longer to give user time to double tap comfortably
+                        tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
+                        let state = app_clone.state::<HotkeyState>();
+                        let mut inner_data = state.0.lock().unwrap();
+                        if inner_data.mode == HotkeyMode::WaitingForDoubleTap {
+                            // User abandoned double tap. Discard the recording silently.
+                            inner_data.mode = HotkeyMode::Idle;
+                            let s_container = app_clone.state::<StateContainer>();
+                            let r = app_clone.state::<AudioRecorder>();
+                            let _ = abort_recording(app_clone.clone(), s_container, r);
+                        }
+                    });
+                }
+            } else {
+                data.mode = HotkeyMode::Idle;
+            }
+        }
+        HotkeyMode::ToggledOn => {
+            // Do nothing, we ignore the release of the second tap.
+        }
+        HotkeyMode::Idle => {
+            // Do nothing, it's the release of a single tap to stop toggle mode.
+        }
+        HotkeyMode::WaitingForDoubleTap => {
+            // Shouldn't happen
+        }
+    }
 }
 
 async fn process_recording(

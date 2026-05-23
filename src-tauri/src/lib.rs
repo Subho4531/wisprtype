@@ -16,16 +16,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, shortcut, event| {
             use tauri_plugin_global_shortcut::ShortcutState;
+            println!("Global shortcut triggered: {:?} - State: {:?}", shortcut, event.state);
             if event.state == ShortcutState::Pressed {
-                println!("Global shortcut triggered: {:?}", shortcut);
-                let state_container = app.state::<commands::StateContainer>();
-                let recorder = app.state::<audio::AudioRecorder>();
-                if let Err(e) = commands::toggle_recording_pipeline(app.clone(), state_container, recorder) {
-                    eprintln!("Failed to toggle recording from hotkey: {}", e);
-                }
+                commands::hotkey_pressed(app.clone());
+            } else if event.state == ShortcutState::Released {
+                commands::hotkey_released(app.clone());
             }
         }).build())
         // Register managed states
+        .manage(commands::HotkeyState(Mutex::new(commands::HotkeyData::default())))
         .manage(commands::StateContainer(Mutex::new(commands::AppState::Idle)))
         .manage(audio::AudioRecorder::new())
         .setup(|app| {
@@ -66,7 +65,7 @@ pub fn run() {
                         "record" => {
                             let state_container = app.state::<commands::StateContainer>();
                             let recorder = app.state::<audio::AudioRecorder>();
-                            if let Err(e) = commands::toggle_recording_pipeline(app.clone(), state_container, recorder) {
+                            if let Err(e) = commands::toggle_recording(app.clone(), state_container, recorder) {
                                 eprintln!("Failed to toggle recording from tray menu: {}", e);
                             }
                         }
@@ -80,7 +79,7 @@ pub fn run() {
                             let app = tray.app_handle();
                             let state_container = app.state::<commands::StateContainer>();
                             let recorder = app.state::<audio::AudioRecorder>();
-                            if let Err(e) = commands::toggle_recording_pipeline(app.clone(), state_container, recorder) {
+                            if let Err(e) = commands::toggle_recording(app.clone(), state_container, recorder) {
                                 eprintln!("Failed to toggle recording from tray click: {}", e);
                             }
                         }
