@@ -4,6 +4,7 @@ pub mod settings;
 pub mod whisper;
 pub mod formatter;
 pub mod injector;
+pub mod history;
 
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -21,6 +22,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, shortcut, event| {
             use tauri_plugin_global_shortcut::ShortcutState;
             println!("Global shortcut triggered: {:?} - State: {:?}", shortcut, event.state);
@@ -34,6 +36,7 @@ pub fn run() {
         .manage(commands::HotkeyState(Mutex::new(commands::HotkeyData::default())))
         .manage(commands::StateContainer(Mutex::new(commands::AppState::Idle)))
         .manage(audio::AudioRecorder::new())
+        .manage(whisper::engine::SharedWhisperState::default())
         .setup(|app| {
             // Build system tray menu
             let title_i = MenuItem::with_id(app, "title", "Wisprtype V1", false, None::<&str>)?;
@@ -110,14 +113,19 @@ pub fn run() {
 
             // Load settings and register the global hotkey
             let settings = settings::load_settings().unwrap_or_default();
-            let hotkey_str = settings.hotkey.to_lowercase().replace(" ", "");
+            let hotkey_str = settings.hotkey.replace(" ", "").replace("Ctrl", "Control");
             
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-            if let Ok(shortcut) = hotkey_str.parse::<Shortcut>() {
-                if let Err(e) = app.global_shortcut().register(shortcut) {
-                    eprintln!("Failed to register global hotkey '{}' on startup: {}", hotkey_str, e);
-                } else {
-                    println!("Successfully registered global hotkey '{}' on startup", hotkey_str);
+            match hotkey_str.parse::<Shortcut>() {
+                Ok(shortcut) => {
+                    if let Err(e) = app.global_shortcut().register(shortcut) {
+                        eprintln!("CRITICAL: Failed to register global hotkey '{}' on startup: {}", hotkey_str, e);
+                    } else {
+                        println!("HOTKEY: Successfully registered global hotkey '{}' on startup", hotkey_str);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("CRITICAL: Could not parse hotkey string '{}': {}", hotkey_str, e);
                 }
             }
 
@@ -132,7 +140,11 @@ pub fn run() {
             commands::stop_recording,
             commands::is_recording,
             commands::get_settings,
-            commands::save_settings
+            commands::save_settings,
+            commands::get_history,
+            commands::delete_history_entry,
+            commands::clear_history,
+            commands::download_model
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

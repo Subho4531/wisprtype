@@ -1,87 +1,127 @@
 use serde_json::json;
 
-/// Calls the secure OpenAI-compatible cloud API to refine/format speech transcription.
-pub async fn refine_text_cloud(text: &str, system_prompt: &str, api_key: &str) -> Result<String, String> {
-    if api_key.trim().is_empty() {
+/// Calls an LLM provider to refine/format speech transcription.
+pub async fn refine_text_llm(
+    text: &str,
+    system_prompt: &str,
+    provider: &str,
+    model: &str,
+    api_key: &str,
+) -> Result<String, String> {
+    if provider != "ollama" && api_key.trim().is_empty() {
         return Err("API Key is empty. Please enter a valid Cloud API Key in settings.".to_string());
     }
 
-    println!("Calling Cloud AI Completion endpoint...");
-    let client = reqwest::Client::new();
-    let payload = json!({
-        "model": "gpt-4o-mini", // Lightweight, very fast and highly capable for formatting
-        "messages": [
-            { "role": "system", "content": system_prompt },
-            { "role": "user", "content": text }
-        ],
-        "temperature": 0.3
-    });
-
-    let response = client
-        .post("https://api.openai.com/v1/chat/completions")
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| format!("Cloud request failed: {}", e))?;
-
-    if !response.status().is_success() {
-        let err_body = response.text().await.unwrap_or_default();
-        return Err(format!("Cloud API returned error: {}", err_body));
-    }
-
-    let res_json: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse Cloud response JSON: {}", e))?;
-
-    let refined = res_json["choices"][0]["message"]["content"]
-        .as_str()
-        .ok_or_else(|| "Failed to read choices text from Cloud response".to_string())?;
-
-    Ok(refined.trim().to_string())
-}
-
-/// Calls local Ollama chat API to refine/format speech transcription.
-pub async fn refine_text_local(text: &str, system_prompt: &str) -> Result<String, String> {
-    println!("Calling local Ollama endpoint...");
+    println!("Calling {} endpoint for formatting...", provider);
     let client = reqwest::Client::new();
     
-    // We use "llama3" as the default recommended local model. Ollama exposes a standard /api/chat endpoint.
-    let payload = json!({
-        "model": "llama3",
-        "messages": [
-            { "role": "system", "content": system_prompt },
-            { "role": "user", "content": text }
-        ],
-        "stream": false,
-        "options": {
-            "temperature": 0.3
+    let (url, payload, auth_header) = match provider.to_lowercase().as_str() {
+        "ollama" => {
+            (
+                "http://localhost:11434/api/chat".to_string(),
+                json!({
+                    "model": model,
+                    "messages": [
+                        { "role": "system", "content": system_prompt },
+                        { "role": "user", "content": text }
+                    ],
+                    "stream": false,
+                    "options": {
+                        "temperature": 0.1
+                    }
+                }),
+                None
+            )
         }
-    });
+        "gemini" => {
+            // Using Google Gemini endpoint (Google AI Studio)
+            (
+                format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key),
+                json!({
+                    "contents": [
+                        { "role": "user", "parts": [{ "text": text }] }
+                    ],
+                    "systemInstruction": {
+                        "parts": [{ "text": system_prompt }]
+                    },
+                    "generationConfig": {
+                        "temperature": 0.1
+                    }
+                }),
+                None
+            )
+        }
+        "openrouter" => {
+            (
+                "https://openrouter.ai/api/v1/chat/completions".to_string(),
+                json!({
+                    "model": model,
+                    "messages": [
+                        { "role": "system", "content": system_prompt },
+                        { "role": "user", "content": text }
+                    ],
+                    "temperature": 0.1
+                }),
+                Some(format!("Bearer {}", api_key))
+            )
+        }
+        "openai" | _ => {
+            (
+                "https://api.openai.com/v1/chat/completions".to_string(),
+                json!({
+                    "model": model,
+                    "messages": [
+                        { "role": "system", "content": system_prompt },
+                        { "role": "user", "content": text }
+                    ],
+                    "temperature": 0.1
+                }),
+                Some(format!("Bearer {}", api_key))
+            )
+        }
+    };
 
-    let response = client
-        .post("http://localhost:11434/api/chat")
-        .header("Content-Type", "application/json")
+    let mut builder = client.post(&url).header("Content-Type", "application/json");
+    
+    if let Some(auth) = auth_header {
+        builder = builder.header("Authorization", auth);
+    }
+    
+    // Add OpenRouter specific headers if needed
+    if provider.to_lowercase() == "openrouter" {
+        builder = builder
+            .header("HTTP-Referer", "https://github.com/wisprtype")
+            .header("X-Title", "Wisprtype");
+    }
+
+    let response = builder
         .json(&payload)
         .send()
         .await
-        .map_err(|e| format!("Ollama connection failed: {}", e))?;
+        .map_err(|e| format!("LLM request failed: {}", e))?;
 
     if !response.status().is_success() {
         let err_body = response.text().await.unwrap_or_default();
-        return Err(format!("Ollama API returned error: {}", err_body));
+        return Err(format!("LLM API returned error: {}", err_body));
     }
 
     let res_json: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse Ollama response JSON: {}", e))?;
+        .map_err(|e| format!("Failed to parse LLM response JSON: {}", e))?;
 
-    let refined = res_json["message"]["content"]
-        .as_str()
-        .ok_or_else(|| "Failed to read content from Ollama response".to_string())?;
+    let refined = if provider.to_lowercase() == "ollama" {
+        res_json["message"]["content"].as_str()
+    } else if provider.to_lowercase() == "gemini" {
+        res_json["candidates"][0]["content"]["parts"][0]["text"].as_str()
+    } else {
+        res_json["choices"][0]["message"]["content"].as_str()
+    };
 
-    Ok(refined.trim().to_string())
+    let refined_text = refined
+        .ok_or_else(|| "Failed to read text from LLM response".to_string())?
+        .trim()
+        .to_string();
+
+    Ok(refined_text)
 }

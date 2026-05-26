@@ -2,14 +2,16 @@ pub mod rule;
 pub mod client;
 
 pub use rule::clean_text;
-pub use client::{refine_text_cloud, refine_text_local};
+pub use client::refine_text_llm;
+
+const PERMANENT_PROMPT: &str = "You are an expert transcription formatter. Correct spelling, grammar, and punctuation errors. Format the text professionally without adding any conversational filler, markdown formatting (like quotes or bolding), prefixes, or explanations. Output ONLY the final perfectly formatted text.";
 
 /// Formats the raw transcription using the selected engine configuration.
 /// Ensures extreme resilience by automatically falling back to rule-based formatting if network or local LLM requests fail.
 pub async fn format_transcription(
     text: &str,
-    engine: &str,
-    system_prompt: &str,
+    provider: &str,
+    model: &str,
     api_key: &str,
 ) -> String {
     let trimmed = text.trim();
@@ -17,34 +19,20 @@ pub async fn format_transcription(
         return String::new();
     }
 
-    match engine.to_lowercase().as_str() {
+    match provider.to_lowercase().as_str() {
         "none" => {
             println!("Formatting disabled: returning raw trimmed text.");
             trimmed.to_string()
         }
-        "local" => {
-            println!("Local LLM formatting selected.");
-            match refine_text_local(trimmed, system_prompt).await {
-                Ok(refined) => refined,
-                Err(e) => {
-                    eprintln!("Ollama formatting failed ({}); falling back to offline rule refiner.", e);
-                    clean_text(trimmed)
-                }
-            }
-        }
-        "cloud" => {
-            println!("Cloud LLM formatting selected.");
-            match refine_text_cloud(trimmed, system_prompt, api_key).await {
-                Ok(refined) => refined,
-                Err(e) => {
-                    eprintln!("Cloud AI formatting failed ({}); falling back to offline rule refiner.", e);
-                    clean_text(trimmed)
-                }
-            }
-        }
         _ => {
-            println!("Unknown formatting engine '{}'; falling back to offline rule refiner.", engine);
-            clean_text(trimmed)
+            println!("LLM formatting selected (Provider: {}, Model: {}).", provider, model);
+            match refine_text_llm(trimmed, PERMANENT_PROMPT, provider, model, api_key).await {
+                Ok(refined) => refined,
+                Err(e) => {
+                    eprintln!("LLM formatting failed ({}); falling back to offline rule refiner.", e);
+                    clean_text(trimmed)
+                }
+            }
         }
     }
 }

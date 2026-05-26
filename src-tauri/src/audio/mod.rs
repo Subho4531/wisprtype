@@ -3,9 +3,10 @@ pub mod resampler;
 
 use std::sync::Mutex;
 pub use capture::ActiveRecorder;
+use tokio::sync::mpsc;
 
 /// AudioRecorder provides a high-level, thread-safe interface for starting and stopping
-/// audio capture, automatically converting the output to 16kHz mono for speech recognition.
+/// audio capture. It returns a stream of chunks.
 pub struct AudioRecorder {
     active_recorder: Mutex<Option<ActiveRecorder>>,
 }
@@ -25,35 +26,32 @@ impl AudioRecorder {
     }
 
     /// Starts recording from the default input device.
+    /// Returns a receiver for audio chunks, along with sample rate and channels.
     /// Returns an error if recording is already in progress.
-    pub fn start_recording(&self) -> Result<(), String> {
+    pub fn start_recording(&self) -> Result<(mpsc::UnboundedReceiver<Vec<f32>>, u32, u16), String> {
         let mut active = self.active_recorder.lock().map_err(|e| e.to_string())?;
         if active.is_some() {
             return Err("Recording is already in progress".to_string());
         }
 
-        let recorder = ActiveRecorder::start()?;
+        let (tx, rx) = mpsc::unbounded_channel();
+        let recorder = ActiveRecorder::start(tx)?;
+        let sr = recorder.sample_rate;
+        let ch = recorder.channels;
         *active = Some(recorder);
-        Ok(())
+        
+        Ok((rx, sr, ch))
     }
 
-    /// Stops recording, consumes the raw samples, downmixes them to mono,
-    /// and resamples the resulting mono stream to 16kHz before returning it.
+    /// Stops recording and drops the active stream.
     /// Returns an error if no active recording is in progress.
-    pub fn stop_recording(&self) -> Result<Vec<f32>, String> {
+    pub fn stop_recording(&self) -> Result<(), String> {
         let mut active = self.active_recorder.lock().map_err(|e| e.to_string())?;
         let recorder = active.take().ok_or_else(|| "No active recording to stop".to_string())?;
 
-        // Stop the recording stream and get the captured samples
-        let (raw_samples, sample_rate, channels) = recorder.stop()?;
-
-        // Step 1: Average channels down to mono
-        let mono_samples = resampler::downmix_to_mono(&raw_samples, channels);
-
-        // Step 2: Linear resample to standard 16,000 Hz for speech recognition (Whisper)
-        let resampled_samples = resampler::resample(&mono_samples, sample_rate, 16000);
-
-        Ok(resampled_samples)
+        // Stop the recording stream
+        recorder.stop();
+        Ok(())
     }
 
     /// Checks if a recording is currently active.
@@ -66,6 +64,7 @@ impl AudioRecorder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
     #[test]
     #[ignore] // Gated behind hardware microphone access - run with `cargo test -- --ignored --nocapture`
@@ -73,26 +72,32 @@ mod tests {
         use std::thread::sleep;
         use std::time::Duration;
 
-        println!("Initializing audio capture...");
-        let recorder = AudioRecorder::new();
-        
-        println!("Starting recording for 3 seconds... Please speak into your microphone!");
-        recorder.start_recording().expect("Failed to start recording");
-        
-        sleep(Duration::from_secs(3));
-        
-        println!("Stopping recording...");
-        let samples = recorder.stop_recording().expect("Failed to stop recording");
-        
-        println!("Captured {} samples successfully!", samples.len());
-        assert!(!samples.is_empty(), "Captured samples must not be empty");
-        
-        // At 16kHz, 3 seconds of audio should have approximately 48,000 samples
-        let expected_samples = 48000;
-        let bounds = 10000; // allow variance for stream startup latency
-        let len = samples.len();
-        println!("Actual sample count: {}, expected around {}", len, expected_samples);
-        assert!((len as i32 - expected_samples as i32).abs() < bounds, 
-            "Sample count is outside of reasonable range: {}", len);
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            println!("Initializing audio capture...");
+            let recorder = AudioRecorder::new();
+            
+            println!("Starting recording for 3 seconds... Please speak into your microphone!");
+            let (mut rx, sr, ch) = recorder.start_recording().expect("Failed to start recording");
+            
+            let mut all_samples = Vec::new();
+            
+            let handle = tokio::spawn(async move {
+                while let Some(chunk) = rx.recv().await {
+                    all_samples.extend(chunk);
+                }
+                all_samples
+            });
+
+            sleep(Duration::from_secs(3));
+            
+            println!("Stopping recording...");
+            recorder.stop_recording().expect("Failed to stop recording");
+            
+            let samples = handle.await.unwrap();
+            
+            println!("Captured {} raw samples successfully at {} Hz, {} channels!", samples.len(), sr, ch);
+            assert!(!samples.is_empty(), "Captured samples must not be empty");
+        });
     }
 }

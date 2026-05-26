@@ -15,26 +15,29 @@ pub struct AppSettings {
     pub gain: u32,
     #[serde(rename = "whisperModel")]
     pub whisper_model: String,
-    #[serde(rename = "formattingEngine")]
-    pub formatting_engine: String,
-    #[serde(rename = "apiKey")]
+    #[serde(default = "default_cloud_provider", rename = "cloudProvider")]
+    pub cloud_provider: String,
+    #[serde(default = "default_cloud_model", rename = "cloudModel")]
+    pub cloud_model: String,
+    #[serde(default, rename = "apiKey")]
     pub api_key: String,
-    #[serde(rename = "systemPrompt")]
-    pub system_prompt: String,
 }
+
+fn default_cloud_provider() -> String { "openrouter".to_string() }
+fn default_cloud_model() -> String { "google/gemini-2.5-flash".to_string() }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            hotkey: "Ctrl + Shift + Space".to_string(),
+            hotkey: "Control + Shift + Space".to_string(),
             launch_on_startup: true,
             paste_immediately: true,
             microphone_device: "Default System Microphone".to_string(),
             gain: 75,
             whisper_model: "base".to_string(),
-            formatting_engine: "cloud".to_string(),
+            cloud_provider: "openrouter".to_string(),
+            cloud_model: "google/gemini-2.5-flash".to_string(),
             api_key: "".to_string(),
-            system_prompt: "Fix spelling, grammar, punctuation, and format nicely as professional text. Keep the tone natural.".to_string(),
         }
     }
 }
@@ -96,7 +99,7 @@ mod tests {
         assert!(settings.paste_immediately);
         assert_eq!(settings.gain, 75);
         assert_eq!(settings.whisper_model, "base");
-        assert_eq!(settings.formatting_engine, "cloud");
+        assert_eq!(settings.cloud_provider, "openrouter");
     }
 
     #[test]

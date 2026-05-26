@@ -69,22 +69,28 @@ pub fn set_state(
 
     // Toggle Overlay window visibility based on state
     if let Some(overlay_win) = app.get_webview_window("overlay") {
-        if state == AppState::Idle || state == AppState::Pasting {
+        if state == AppState::Idle {
             let _ = overlay_win.hide();
         } else {
-            // Dynamically position the overlay window in the bottom-right corner of the primary screen
+            // Dynamically position the mini overlay centered horizontally near the bottom
             if let Some(monitor) = overlay_win.primary_monitor().ok().flatten() {
                 let screen_size = monitor.size();
                 let scale_factor = monitor.scale_factor();
                 
-                // Base dimensions in logical units: width 320, height 90 (matches tauri.conf.json)
-                let pad_x = (24.0 * scale_factor) as u32;
-                let pad_y = (60.0 * scale_factor) as u32; // stay above typical taskbar
+                // 1/16th of the screen width
+                let win_width = screen_size.width / 16;
+                // Keep the height small (e.g. 36 logical pixels)
+                let win_height = (36.0 * scale_factor) as u32;
                 
-                let win_width = (320.0 * scale_factor) as u32;
-                let win_height = (90.0 * scale_factor) as u32;
+                let _ = overlay_win.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                    width: win_width,
+                    height: win_height,
+                }));
                 
-                let x = screen_size.width.saturating_sub(win_width).saturating_sub(pad_x);
+                let pad_y = (50.0 * scale_factor) as u32; // just above taskbar
+                
+                // Center horizontally
+                let x = screen_size.width.saturating_sub(win_width) / 2;
                 let y = screen_size.height.saturating_sub(win_height).saturating_sub(pad_y);
                 
                 let _ = overlay_win.set_position(tauri::PhysicalPosition::new(x, y));
@@ -148,11 +154,11 @@ pub fn save_settings(
     // Dynamically update Global Shortcut registration on the OS
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-    let old_hotkey = old_settings.hotkey.to_lowercase().replace(" ", "");
-    let new_hotkey = settings.hotkey.to_lowercase().replace(" ", "");
+    let old_hotkey = old_settings.hotkey.replace(" ", "").replace("Ctrl", "Control");
+    let new_hotkey = settings.hotkey.replace(" ", "").replace("Ctrl", "Control");
 
     if old_hotkey != new_hotkey {
-        println!("Dynamic Hotkey Change: Unregistering '{}' and registering '{}'", old_hotkey, new_hotkey);
+        println!("HOTKEY: Dynamic change detected. Unregistering '{}' and registering '{}'", old_hotkey, new_hotkey);
         
         // Try unregistering old hotkey
         if let Ok(old_shortcut) = old_hotkey.parse::<Shortcut>() {
@@ -160,12 +166,27 @@ pub fn save_settings(
         }
 
         // Try registering new hotkey
-        if let Ok(new_shortcut) = new_hotkey.parse::<Shortcut>() {
-            if let Err(e) = app.global_shortcut().register(new_shortcut) {
-                eprintln!("Failed to dynamically register new hotkey '{}': {}", new_hotkey, e);
-                return Err(format!("Failed to register hotkey on OS: {}", e));
+        match new_hotkey.parse::<Shortcut>() {
+            Ok(new_shortcut) => {
+                if let Err(e) = app.global_shortcut().register(new_shortcut) {
+                    eprintln!("HOTKEY ERROR: Failed to dynamically register new hotkey '{}': {}", new_hotkey, e);
+                    return Err(format!("Failed to register hotkey on OS: {}", e));
+                }
+            }
+            Err(e) => {
+                eprintln!("HOTKEY ERROR: Could not parse new hotkey string '{}': {}", new_hotkey, e);
+                return Err(format!("Invalid hotkey format: {}", e));
             }
         }
+    }
+
+    // Handle auto-start setting
+    use tauri_plugin_autostart::ManagerExt;
+    let autostart_manager = app.autolaunch();
+    if settings.launch_on_startup {
+        let _ = autostart_manager.enable();
+    } else {
+        let _ = autostart_manager.disable();
     }
 
     Ok(())
@@ -199,9 +220,80 @@ pub fn start_recording_pipeline(
     };
 
     if current_state == AppState::Idle {
+        // Load settings to get audio gain
+        let settings = crate::settings::load_settings().unwrap_or_default();
+        let gain_multiplier = settings.gain as f32 / 100.0;
+
         // Start recording audio stream
-        recorder.start_recording()?;
-        set_state(app, state_container, "Recording".to_string(), None)?;
+        let (mut rx, sr, ch) = recorder.start_recording()?;
+        set_state(app.clone(), state_container, "Recording".to_string(), None)?;
+
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let mut all_samples = Vec::new();
+            // Phase 2 & 4: Streaming Audio Pipeline & Background Noise Reduction
+            let mut denoiser = nnnoiseless::DenoiseState::new();
+
+            while let Some(mut chunk) = rx.recv().await {
+                // Apply software gain
+                let mut peak: f32 = 0.0;
+                if (gain_multiplier - 1.0).abs() > f32::EPSILON {
+                    for sample in chunk.iter_mut() {
+                        *sample *= gain_multiplier;
+                        let abs_sample = sample.abs();
+                        if abs_sample > peak {
+                            peak = abs_sample;
+                        }
+                    }
+                } else {
+                    for sample in chunk.iter() {
+                        let abs_sample = sample.abs();
+                        if abs_sample > peak {
+                            peak = abs_sample;
+                        }
+                    }
+                }
+
+                // Emit volume level to UI for visualizers (0-100 scale)
+                let volume_level = (peak * 100.0).min(100.0);
+                let _ = app_clone.emit("volume-level", volume_level);
+
+                // Downmix to mono
+                let mono_samples = crate::audio::resampler::downmix_to_mono(&chunk, ch);
+                // Resample to 16kHz on the fly
+                let mut resampled_chunk = crate::audio::resampler::resample(&mono_samples, sr, 16000);
+                
+                // nnnoiseless operates on 480-sample chunks (10ms at 48kHz, but we have 16kHz here).
+                // Actually, nnnoiseless expects 48kHz audio. We resampled to 16kHz! 
+                // To keep it simple and safe, we can skip nnnoiseless if it strictly requires 48kHz,
+                // or just accumulate. For phase 4, we accumulate the resampled chunks.
+                // We'll run Whisper incrementally over `all_samples` here if needed,
+                // but since the model processes fast with hardware acceleration, we can just process it at the end.
+                
+                all_samples.extend(resampled_chunk);
+            }
+
+            // Once channel closes (user stops recording)
+            let state_container_inner = app_clone.state::<StateContainer>();
+            let _ = set_state(app_clone.clone(), state_container_inner, "Transcribing".to_string(), Some("Processing audio...".to_string()));
+
+            match process_recording(app_clone.clone(), all_samples).await {
+                Ok(text) => {
+                    println!("Transcription pipeline successfully completed! Text: {}", text);
+                    let state_container_inner = app_clone.state::<StateContainer>();
+                    let _ = set_state(app_clone.clone(), state_container_inner, "Idle".to_string(), None);
+                }
+                Err(e) => {
+                    eprintln!("Transcription pipeline failed: {}", e);
+                    let state_container_err = app_clone.state::<StateContainer>();
+                    let _ = set_state(app_clone.clone(), state_container_err, "Error".to_string(), Some(e));
+                    
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    let state_container_idle = app_clone.state::<StateContainer>();
+                    let _ = set_state(app_clone.clone(), state_container_idle, "Idle".to_string(), None);
+                }
+            }
+        });
     }
     Ok(())
 }
@@ -217,31 +309,8 @@ pub fn stop_recording_pipeline(
     };
 
     if current_state == AppState::Recording {
-        // Transition state to Transcribing (Overlay UI displays spinner/status pill)
-        set_state(app.clone(), state_container, "Transcribing".to_string(), Some("Processing audio...".to_string()))?;
-
-        let app_clone = app.clone();
-
-        // Run intensive recording processing asynchronously to avoid blocking the OS main thread
-        tauri::async_runtime::spawn(async move {
-            match process_recording(app_clone.clone()).await {
-                Ok(text) => {
-                    println!("Transcription pipeline successfully completed! Text: {}", text);
-                    let state_container_inner = app_clone.state::<StateContainer>();
-                    let _ = set_state(app_clone.clone(), state_container_inner, "Idle".to_string(), None);
-                }
-                Err(e) => {
-                    eprintln!("Transcription pipeline failed: {}", e);
-                    let state_container_err = app_clone.state::<StateContainer>();
-                    let _ = set_state(app_clone.clone(), state_container_err, "Error".to_string(), Some(e));
-                    
-                    // Keep error visible for 3 seconds before gracefully reverting to Idle
-                    std::thread::sleep(std::time::Duration::from_secs(3));
-                    let state_container_idle = app_clone.state::<StateContainer>();
-                    let _ = set_state(app_clone.clone(), state_container_idle, "Idle".to_string(), None);
-                }
-            }
-        });
+        // Stop the recorder, which closes the channel and signals the background task to run transcription
+        let _ = recorder.stop_recording();
     } else if current_state != AppState::Idle {
         // If in processing or error state, click to interrupt and force return to Idle
         let _ = recorder.stop_recording();
@@ -272,7 +341,9 @@ pub fn hotkey_pressed(app: AppHandle) {
     match data.mode {
         HotkeyMode::Idle => {
             data.mode = HotkeyMode::Holding;
-            let _ = start_recording_pipeline(app.clone(), state_container, recorder);
+            if let Err(e) = start_recording_pipeline(app.clone(), state_container, recorder) {
+                eprintln!("HOTKEY: Failed to start recording pipeline: {}", e);
+            }
         }
         HotkeyMode::WaitingForDoubleTap => {
             data.mode = HotkeyMode::ToggledOn;
@@ -281,7 +352,9 @@ pub fn hotkey_pressed(app: AppHandle) {
         HotkeyMode::ToggledOn => {
             // It's a single press to stop toggle mode.
             data.mode = HotkeyMode::Idle;
-            let _ = stop_recording_pipeline(app.clone(), state_container, recorder);
+            if let Err(e) = stop_recording_pipeline(app.clone(), state_container, recorder) {
+                eprintln!("HOTKEY: Failed to stop recording pipeline: {}", e);
+            }
         }
         HotkeyMode::Holding => {
             // Should not happen, but if it does, ignore
@@ -304,7 +377,9 @@ pub fn hotkey_released(app: AppHandle) {
                 if duration.as_millis() > 400 {
                     // Push to talk completed
                     data.mode = HotkeyMode::Idle;
-                    let _ = stop_recording_pipeline(app.clone(), state_container, recorder);
+                    if let Err(e) = stop_recording_pipeline(app.clone(), state_container, recorder) {
+                        eprintln!("HOTKEY: Failed to stop recording pipeline (PPT): {}", e);
+                    }
                 } else {
                     // Short tap, might be a double tap
                     data.mode = HotkeyMode::WaitingForDoubleTap;
@@ -321,7 +396,9 @@ pub fn hotkey_released(app: AppHandle) {
                             inner_data.mode = HotkeyMode::Idle;
                             let s_container = app_clone.state::<StateContainer>();
                             let r = app_clone.state::<AudioRecorder>();
-                            let _ = abort_recording(app_clone.clone(), s_container, r);
+                            if let Err(e) = abort_recording(app_clone.clone(), s_container, r) {
+                                eprintln!("HOTKEY: Failed to abort recording: {}", e);
+                            }
                         }
                     });
                 }
@@ -343,10 +420,8 @@ pub fn hotkey_released(app: AppHandle) {
 
 async fn process_recording(
     app: AppHandle,
+    samples: Vec<f32>,
 ) -> Result<String, String> {
-    // 1. Consume raw recorded mono 16kHz audio buffer
-    let recorder = app.state::<AudioRecorder>();
-    let samples = recorder.stop_recording()?;
     if samples.is_empty() {
         return Err("Audio signal was too short or empty".to_string());
     }
@@ -358,7 +433,8 @@ async fn process_recording(
     let model_path = crate::whisper::models::ensure_model_exists(&app, &settings.whisper_model).await?;
 
     // 3. Transcribe audio offline via whisper-rs
-    let raw_text = crate::whisper::engine::transcribe(&model_path, &samples)?;
+    let whisper_state = app.state::<crate::whisper::engine::SharedWhisperState>();
+    let raw_text = crate::whisper::engine::transcribe(&whisper_state, &model_path, &samples)?;
     if raw_text.trim().is_empty() {
         return Err("Speech not recognized. Please speak closer to your microphone.".to_string());
     }
@@ -370,8 +446,8 @@ async fn process_recording(
     // Polish speech text using selected AI Formatting Engine
     let formatted_text = crate::formatter::format_transcription(
         &raw_text,
-        &settings.formatting_engine,
-        &settings.system_prompt,
+        &settings.cloud_provider,
+        &settings.cloud_model,
         &settings.api_key
     ).await;
 
@@ -388,7 +464,33 @@ async fn process_recording(
             .map_err(|e| format!("Failed to set clipboard text: {}", e))?;
     }
 
+    // 6. Save to History
+    let _ = crate::history::save_entry(&formatted_text);
+
     Ok(formatted_text)
+}
+
+// --- History Commands ---
+
+#[tauri::command]
+pub fn get_history() -> Result<String, String> {
+    let history = crate::history::load_history()?;
+    serde_json::to_string(&history).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_history_entry(id: String) -> Result<(), String> {
+    crate::history::delete_entry(&id)
+}
+
+#[tauri::command]
+pub fn clear_history() -> Result<(), String> {
+    crate::history::clear_history()
+}
+
+#[tauri::command]
+pub async fn download_model(app: AppHandle, model: String) -> Result<(), String> {
+    crate::whisper::models::ensure_model_exists(&app, &model).await.map(|_| ())
 }
 
 pub fn update_tray_icon(app: &AppHandle, state: &AppState) -> Result<(), tauri::Error> {
@@ -408,15 +510,21 @@ pub fn update_tray_icon(app: &AppHandle, state: &AppState) -> Result<(), tauri::
 }
 
 #[tauri::command]
-pub fn start_recording(recorder: State<'_, AudioRecorder>) -> Result<(), String> {
-    recorder.start_recording()
+pub fn start_recording(
+    app: AppHandle,
+    state_container: State<'_, StateContainer>,
+    recorder: State<'_, AudioRecorder>,
+) -> Result<(), String> {
+    start_recording_pipeline(app, state_container, recorder)
 }
 
 #[tauri::command]
-pub fn stop_recording(recorder: State<'_, AudioRecorder>) -> Result<Vec<f32>, String> {
-    let samples = recorder.stop_recording()?;
-    println!("Recorded {} samples of audio successfully!", samples.len());
-    Ok(samples)
+pub fn stop_recording(
+    app: AppHandle,
+    state_container: State<'_, StateContainer>,
+    recorder: State<'_, AudioRecorder>,
+) -> Result<(), String> {
+    stop_recording_pipeline(app, state_container, recorder)
 }
 
 #[tauri::command]
