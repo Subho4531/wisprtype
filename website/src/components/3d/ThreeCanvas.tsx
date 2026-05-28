@@ -39,7 +39,8 @@ function GlowingMicButton({ isSpeaking, position = [0, 0, 0] }: { isSpeaking: bo
   return (
     <group position={position}>
       <Html center transform position={[0, 0, 0]} scale={0.25}>
-        <div style={{ position: "relative", width: 80, height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+          <div style={{ position: "relative", width: 80, height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
 
           {/* Orange ripple rings */}
           {[0, 0.55, 1.1].map((delay, i) => (
@@ -101,6 +102,21 @@ function GlowingMicButton({ isSpeaking, position = [0, 0, 0] }: { isSpeaking: bo
                 }} />
               ))}
             </div>
+          </div>
+          </div>
+          
+          <div style={{
+            opacity: isSpeaking ? 1 : 0,
+            transition: "opacity 0.3s ease",
+            color: "#FFFFFF",
+            fontFamily: "var(--font-heading), sans-serif",
+            fontSize: "24px",
+            fontWeight: 500,
+            letterSpacing: "1px",
+            textShadow: "0 2px 12px rgba(249,115,22,0.6)",
+            pointerEvents: "none"
+          }}>
+            Speaking...
           </div>
         </div>
 
@@ -178,11 +194,13 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
             style={{ 
               width: '600px', 
               height: '375px', 
-              background: '#f9f9f9', // Windows 11 app background
-              borderRadius: '10px',
+              background: 'rgba(20, 20, 20, 0.65)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              borderRadius: '12px',
               overflow: 'hidden',
-              border: '1px solid #c0c0c0',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
               boxSizing: 'border-box',
               position: 'relative',
               display: 'flex',
@@ -191,30 +209,30 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
           >
             {/* Windows 11 Title Bar */}
             <div style={{
-              height: '36px',
-              background: '#f3f3f3',
-              borderBottom: '1px solid #e5e5e5',
+              height: '40px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingLeft: '16px',
               userSelect: 'none'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#111', fontSize: '13px', fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px', fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
                 <span style={{ fontWeight: 500 }}>{EXAMPLES[currentExampleIndex].title}</span>
               </div>
               <div style={{ display: 'flex', height: '100%' }}>
                 {/* Minimize */}
                 <div style={{ width: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="10" height="1" viewBox="0 0 10 1"><path d="M0 0h10v1H0z" fill="#000"/></svg>
+                  <svg width="10" height="1" viewBox="0 0 10 1"><path d="M0 0h10v1H0z" fill="rgba(255,255,255,0.7)"/></svg>
                 </div>
                 {/* Maximize */}
                 <div style={{ width: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1h8v8H1V1zm1 1v6h6V2H2z" fill="#000"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1h8v8H1V1zm1 1v6h6V2H2z" fill="rgba(255,255,255,0.7)"/></svg>
                 </div>
                 {/* Close */}
                 <div style={{ width: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.06 0L5 3.94 8.94 0 10 1.06 6.06 5 10 8.94 8.94 10 5 6.06 1.06 10 0 8.94 3.94 5 0 1.06z" fill="#000"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.06 0L5 3.94 8.94 0 10 1.06 6.06 5 10 8.94 8.94 10 5 6.06 1.06 10 0 8.94 3.94 5 0 1.06z" fill="rgba(255,255,255,0.7)"/></svg>
                 </div>
               </div>
             </div>
@@ -289,14 +307,14 @@ function TypingAnimation({ appState, currentExampleIndex }: { appState: AppState
 
   return (
     <>
-      <div style={{ color: '#222', fontFamily: 'Segoe UI, sans-serif', fontSize: '20px', lineHeight: 1.6 }}>
+      <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontFamily: 'Segoe UI, sans-serif', fontSize: '20px', lineHeight: 1.6 }}>
         <div style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
           {text}
           <span style={{ 
             display: 'inline-block', 
             width: '2px', 
             height: '20px', 
-            background: '#000', 
+            background: '#FFF', 
             marginLeft: '4px',
             verticalAlign: 'middle',
             animation: appState === 'idle' ? 'blink 1s step-end infinite' : 'none',
