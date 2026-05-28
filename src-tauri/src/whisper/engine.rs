@@ -78,28 +78,7 @@ pub fn transcribe(state: &SharedWhisperState, model_path: &Path, samples: &[f32]
         let segment_text = whisper_state
             .full_get_segment_text(i)
             .map_err(|e| format!("Failed to read text from segment {}: {}", i, e))?;
-            
-        let lower = segment_text.trim().to_lowercase();
-        let stripped = lower.replace(".", "").replace(",", "").replace("!", "").replace("?", "")
-                            .replace("[", "").replace("]", "").replace("(", "").replace(")", "");
-        
-        let is_hallucination = 
-            stripped == "thank you" ||
-            stripped == "thanks" ||
-            stripped == "subscribe" ||
-            stripped == "thank you for watching" ||
-            stripped == "thanks for watching" ||
-            stripped == "please subscribe" ||
-            stripped == "subtitle by amaraorg" ||
-            stripped == "amaraorg" ||
-            stripped == "music" ||
-            stripped == "silence" ||
-            stripped.contains("subscribe to my channel") ||
-            stripped.contains("thanks for watching");
-
-        if !is_hallucination {
-            transcription.push_str(&segment_text);
-        }
+        transcription.push_str(&segment_text);
     }
 
     let cleaned_text = transcription.trim().to_string();
