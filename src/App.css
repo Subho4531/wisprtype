@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
 
 :root {
   --font-sans: 'Inter', sans-serif;
-  --font-outfit: 'Outfit', sans-serif;
   --font-mono: 'Consolas', 'Fira Code', monospace;
   
   --zinc-50: #f9f9fb;
@@ -72,7 +73,7 @@ textarea {
   height: 24px;
   background: var(--zinc-200);
   display: block;
-  border-radius: 0; /* Strict UI design has sharp rectangular elements */
+  border-radius: 9999px; /* Strict UI design has sharp rectangular elements */
   position: relative;
   border: 1px solid var(--zinc-300);
 }
@@ -108,43 +109,6 @@ td {
   border-bottom: 1px solid var(--zinc-200);
 }
 
-.table-status-pill {
-  display: inline-block;
-  padding: 2px 6px;
-  font-size: 0.7rem;
-  font-weight: bold;
-  border: 1px solid;
-}
-.table-status-online {
-  background-color: #ecfdf5;
-  color: #065f46;
-  border-color: #a7f3d0;
-}
-.table-status-warning {
-  background-color: #fffbeb;
-  color: #92400e;
-  border-color: #fde68a;
-}
-.table-status-offline {
-  background-color: #fef2f2;
-  color: #991b1b;
-  border-color: #fca5a5;
-}
-
-/* Wave signal meter */
-.signal-bar {
-  flex-grow: 1;
-  background-color: var(--zinc-100);
-  border: 1px solid var(--zinc-200);
-  height: 16px;
-  position: relative;
-  overflow: hidden;
-}
-.signal-fill {
-  height: 100%;
-  background-color: var(--orange-500);
-  transition: width 0.08s ease-out;
-}
 
 /* Floating overlay - transparent window body */
 html.window-overlay,
@@ -157,24 +121,18 @@ body.window-overlay {
 }
 /* The WaveformOverlay component handles all overlay layout via inline styles */
 
-
-/* Custom micro spinner */
-.spinner-box {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--zinc-300);
-  border-top-color: #000000;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@layer base {
+  button, 
+  input, 
+  select, 
+  textarea, 
+  [role="tab"],
+  [tabindex]:not([tabindex="-1"]) {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500;
+  }
 }
 
-.pulsing-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--red-500);
-  animation: pulse 1s infinite;
+.switch-input:focus-visible + .switch-label {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--orange-500);
 }
