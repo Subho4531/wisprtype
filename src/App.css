@@ -97,6 +97,33 @@ textarea {
   background: #ffffff;
 }
 
+/* Dark mode overrides for form elements */
+.dark input[type="text"],
+.dark input[type="password"],
+.dark select,
+.dark textarea {
+  background: #27272a; /* zinc-800 */
+  border-color: #3f3f46; /* zinc-700 */
+  color: #f4f4f5; /* zinc-100 */
+}
+.dark input[type="text"]:focus,
+.dark input[type="password"]:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+.dark .switch-label {
+  background: #3f3f46; /* zinc-700 */
+  border-color: #52525b; /* zinc-600 */
+}
+.dark .switch-input:checked + .switch-label {
+  background: #ffffff;
+}
+.dark .switch-input:checked + .switch-label:after {
+  background: #18181b; /* zinc-900 */
+}
+
 /* Custom Table */
 table {
   width: 100%;

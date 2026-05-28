@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Hexagon, Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 
 import { useSettings } from "./hooks/useSettings";
 import { useHistory } from "./hooks/useHistory";
@@ -85,10 +85,27 @@ function App() {
       setRecordingSeconds(event.payload);
     });
 
+    const unlistenModelProgress = listen<{ model: string; progress: number; status: string }>('model-download-progress', (event) => {
+      const { model, progress, status } = event.payload;
+      if (status === 'complete') {
+        setStatusMessage(`Model ${model} ready!`);
+      } else if (status === 'downloading') {
+        setStatusMessage(`Downloading ${model}: ${progress}%`);
+      } else if (status === 'error') {
+        setStatusMessage(`Failed to download ${model}`);
+      }
+    });
+
+    const unlistenFormatError = listen<{ error: string }>('format-error', (event) => {
+      setStatusMessage(`Formatting failed: ${event.payload.error}`);
+    });
+
     return () => {
       unlistenState.then((fn) => fn());
       unlistenVol.then((fn) => fn());
       unlistenTick.then((fn) => fn());
+      unlistenModelProgress.then((fn) => fn());
+      unlistenFormatError.then((fn) => fn());
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -110,12 +127,32 @@ function App() {
         {/* Top Navigation Bar */}
         <div className="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-300">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-black dark:bg-white text-white dark:text-black flex items-center justify-center transition-colors duration-300">
-              <Hexagon className="w-6 h-6" />
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img src="/Wisprtype.png" alt="WisprType Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <h1 className="font-black text-xl tracking-tighter uppercase leading-none">Wisprtype</h1>
-              <p className="text-[10px] font-mono text-zinc-400 font-bold tracking-widest mt-1 uppercase">v0.1.0-alpha</p>
+              <span
+                style={{
+                  fontFamily: "Outfit, sans-serif",
+                  fontSize: '1.4rem',
+                  fontWeight: 800,
+                  letterSpacing: '-0.5px',
+                }}
+                className="font-black text-black dark:text-white"
+              >
+                Wispr
+                <span
+                  style={{
+                    background: 'linear-gradient(135deg, #FF4500, #FF8C00, #FFD700)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  Type
+                </span>
+              </span>
+              <p className="text-[10px] font-mono text-zinc-400 font-bold tracking-widest mt-1 uppercase">V 1.0</p>
             </div>
           </div>
 
@@ -160,6 +197,13 @@ function App() {
           </div>
         </div>
 
+        {statusMessage && (
+          <div className="bg-orange-500/10 dark:bg-orange-500/20 border-b border-orange-500/20 px-6 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 flex items-center gap-3 transition-all shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
+            {statusMessage}
+          </div>
+        )}
+
         {/* Main Tab Content */}
         <main className="p-6 overflow-hidden">
           <AnimatePresence mode="wait">
@@ -182,7 +226,7 @@ function App() {
                 <AnalyticsTab history={history} />
               )}
               {activeTab === "settings" && (
-                <SettingsTab settings={settings} updateSetting={updateSetting} micOptions={micOptions} audioLevel={audioLevel} />
+                <SettingsTab settings={settings} updateSetting={updateSetting} micOptions={micOptions} />
               )}
             </motion.div>
           </AnimatePresence>

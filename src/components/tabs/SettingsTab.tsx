@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Card } from "../cards/Card";
 import { AppSettings } from "../../types";
@@ -7,30 +7,13 @@ interface SettingsTabProps {
   settings: AppSettings;
   updateSetting: (updates: Partial<AppSettings>) => void;
   micOptions: string[];
-
-  audioLevel?: number;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({ 
   settings, 
   updateSetting, 
-  micOptions, 
-
-  audioLevel = 0
+  micOptions
 }) => {
-  const [displayLevel, setDisplayLevel] = useState(0);
-
-  useEffect(() => {
-    if (audioLevel > 0) {
-      setDisplayLevel(audioLevel);
-      return;
-    }
-    // Fake audio level for settings preview if idle
-    const interval = setInterval(() => {
-      setDisplayLevel(Math.random() * 30 + 10);
-    }, 150);
-    return () => clearInterval(interval);
-  }, [audioLevel]);
 
   const handleHotkeyRecorder = (e: React.KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault();
@@ -45,15 +28,17 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       if (keyName === ' ') keyName = 'Space';
       if (keyName.length === 1) keyName = keyName.toUpperCase();
       keys.push(keyName);
-      
+    }
+    
+    if (keys.length > 0) {
       updateSetting({ hotkey: keys.join('+') });
     }
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-px bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 mb-24 transition-colors">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 mb-24 transition-colors p-4">
       {/* Audio Engine Configuration */}
-      <Card title="Audio Hardware Interfaces" className="min-h-[300px]">
+      <Card title="Audio Hardware Interfaces">
         <div className="space-y-6 mt-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Capture Device</label>
@@ -76,20 +61,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               className="w-full accent-black cursor-pointer"
             />
           </div>
-          <div className="flex flex-col gap-2 pt-4">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Real-Time Input Level</label>
-            <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 transition-colors duration-300">
-              <div 
-                className="h-full bg-orange-500 transition-all duration-75" 
-                style={{ width: `${displayLevel}%` }} 
-              />
-            </div>
-          </div>
         </div>
       </Card>
 
       {/* AI Model Configuration */}
-      <Card title="Neural Parameters" className="min-h-[300px]">
+      <Card title="Neural Parameters">
         <div className="space-y-6 mt-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Whisper Local Model</label>
@@ -111,8 +87,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Cloud Provider</label>
             <select 
               value={settings.cloudProvider}
-              onChange={(e) => updateSetting({ cloudProvider: e.target.value as any })}
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
+              onChange={(e) => {
+                const provider = e.target.value as any;
+                const updates: any = { cloudProvider: provider };
+                if (provider === "openai") updates.cloudModel = "gpt-4o-mini";
+                if (provider === "gemini") updates.cloudModel = "gemini-2.5-flash";
+                if (provider === "openrouter") updates.cloudModel = "google/gemini-2.5-flash";
+                if (provider === "ollama") updates.cloudModel = "llama3.2";
+                updateSetting(updates);
+              }}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 p-2 rounded"
             >
               <option value="none">Raw Recognition (None)</option>
               <option value="ollama">Local AI (Ollama)</option>
@@ -160,8 +144,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </Card>
 
       {/* Secure Credentials */}
-      <Card title="Security & Authentication" className="min-h-[300px]">
-        <div className="space-y-6 mt-4 flex flex-col h-full">
+      <Card title="Security & Authentication">
+        <div className="space-y-6 mt-4 flex flex-col">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Cloud API Access Key</label>
             <input 
@@ -178,7 +162,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </Card>
 
       {/* General App Preferences */}
-      <Card title="System Integration" className="min-h-[300px] flex flex-col justify-between">
+      <Card title="System Integration">
         <div className="space-y-6 mt-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Global Trigger Hotkey</label>
@@ -190,6 +174,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               placeholder="Click and press keys..."
               className="w-full font-mono text-sm uppercase bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 cursor-pointer focus:bg-zinc-100"
             />
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Press your desired key combination. Ctrl+Win, Ctrl+Alt, etc. are supported.</p>
           </div>
           <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
             <div>

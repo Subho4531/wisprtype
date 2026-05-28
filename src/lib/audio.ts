@@ -19,27 +19,28 @@ export function playFeedbackSound(type: 'start' | 'stop') {
   const now = audioCtx.currentTime;
 
   if (type === 'start') {
-    // Very soft, soothing single bell tone (C5)
+    // Sharp, small tick for start
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(523.25, now); // C5
+    oscillator.frequency.setValueAtTime(800, now);
+    oscillator.frequency.exponentialRampToValueAtTime(400, now + 0.05);
     
-    // Slow, soft attack and very long release
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05); // gentle fade in
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4); // slow fade out
+    gainNode.gain.linearRampToValueAtTime(0.2, now + 0.005); // immediate attack
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05); // instant decay
     
     oscillator.start(now);
-    oscillator.stop(now + 0.45);
+    oscillator.stop(now + 0.05);
   } else {
-    // Very soft, soothing lower bell tone (G4)
+    // Lower, small tick for stop
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(392.00, now); // G4
+    oscillator.frequency.setValueAtTime(400, now);
+    oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.05);
     
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    gainNode.gain.linearRampToValueAtTime(0.2, now + 0.005); 
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05); 
     
     oscillator.start(now);
-    oscillator.stop(now + 0.45);
+    oscillator.stop(now + 0.05);
   }
 }

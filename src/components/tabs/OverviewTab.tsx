@@ -6,6 +6,25 @@ import { StatCard } from "../cards/StatCard";
 import { TranscriptionEntry, OverlayState, AppSettings } from "../../types";
 import { useToast } from "../../hooks/useToast";
 
+const SineWave: React.FC<{ active: boolean }> = ({ active }) => {
+  if (!active) return null;
+  return (
+    <svg className="absolute inset-0 w-full h-full opacity-10" viewBox="0 0 400 80" preserveAspectRatio="none">
+      <style>{`
+        @keyframes wave-shift { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+        .wave-path { animation: wave-shift 1.5s linear infinite; }
+      `}</style>
+      <path
+        className="wave-path"
+        d="M0,40 C20,10 40,70 60,40 C80,10 100,70 120,40 C140,10 160,70 180,40 C200,10 220,70 240,40 C260,10 280,70 300,40 C320,10 340,70 360,40 C380,10 400,70 420,40 C440,10 460,70 480,40 C500,10 520,70 540,40 C560,10 580,70 600,40"
+        fill="none"
+        stroke="white"
+        strokeWidth="3"
+      />
+    </svg>
+  );
+};
+
 interface OverviewTabProps {
   history: TranscriptionEntry[];
   appState: OverlayState;
@@ -52,22 +71,46 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       </Card>
 
       {/* Test Voice Trigger Card */}
-      <Card colSpan="lg:col-span-2" className="flex items-center justify-between bg-zinc-900 dark:bg-zinc-950 text-white hover:bg-zinc-800 dark:hover:bg-zinc-900" title="Voice Capture">
-        <div className="flex flex-col justify-center h-full gap-2">
-          <h3 className="text-xl font-semibold">
+      <button 
+        onClick={handleToggleRecording}
+        className="lg:col-span-2 relative bg-zinc-900 dark:bg-zinc-950 p-6 group transition-colors duration-300 hover:bg-zinc-800 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between text-left focus:outline-none focus:ring-2 focus:ring-orange-500"
+      >
+        <SineWave active={appState === "Recording"} />
+        <div className="flex items-start justify-between mb-6 border-b border-zinc-800 pb-4 w-full">
+          <div>
+            <h3 className="text-base font-medium tracking-tight text-white">Voice Capture</h3>
+          </div>
+          <div className="h-8 w-8 bg-white dark:bg-zinc-800 text-black dark:text-white rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+            {appState === "Recording" ? <Minus className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+          </div>
+        </div>
+        
+        <div className="relative z-10 w-full h-full flex flex-col justify-center gap-2">
+          <h3 className="text-2xl font-bold tracking-tight text-white">
             {appState === "Recording" ? "Stop Capturing" : "Start Transcribing"}
           </h3>
-          <p className="text-zinc-400 dark:text-zinc-500 text-sm">
-            {appState === "Idle" ? "Click to toggle your microphone and start recording." : `Current state: ${appState}`}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-zinc-400 dark:text-zinc-500 text-sm">
+              {appState === "Idle" ? "Click anywhere in this card to toggle your microphone." : `Current state: ${appState}`}
+            </p>
+            {appState === "Recording" && (
+              <div className="flex items-center gap-0.5 ml-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div 
+                    key={i}
+                    className="w-1 bg-orange-500 rounded-full animate-pulse"
+                    style={{ 
+                      height: `${12 + Math.random() * 8}px`,
+                      animationDelay: `${i * 0.15}s`,
+                      animationDuration: '0.6s'
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <button 
-          onClick={handleToggleRecording} 
-          className="h-12 w-12 bg-white dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:scale-105 transition-transform shrink-0"
-        >
-          {appState === "Recording" ? <Minus className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
-        </button>
-      </Card>
+      </button>
 
       {/* Metrics Row */}
       <StatCard label="Total Transcriptions" value={history.length} />
