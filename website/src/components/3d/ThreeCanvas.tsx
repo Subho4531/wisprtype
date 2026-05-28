@@ -32,41 +32,95 @@ const EXAMPLES = [
   }
 ]
 
+// Colors pulled from WisprType UI
+// bg: #161110  |  orange: #F97316  |  orange-light: #FB923C  |  orange-dark: #C2410C
+
 function GlowingMicButton({ isSpeaking, position = [0, 0, 0] }: { isSpeaking: boolean, position?: [number, number, number] }) {
   return (
     <group position={position}>
       <Html center transform position={[0, 0, 0]} scale={0.25}>
-        <div style={{
-          width: '80px',
-          height: '80px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle at 30% 30%, #ff4d4d, #b30000)',
-          border: '2px solid #800000',
-          boxShadow: isSpeaking ? 'inset 0 4px 6px rgba(255,255,255,0.6), inset 0 -4px 6px rgba(0,0,0,0.5), 0 0 30px rgba(255,0,0,0.8)' : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: `scale(${isSpeaking ? 1.1 : 1})`,
-          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          animation: isSpeaking ? 'pulseGlow 2s infinite alternate' : 'none',
-          opacity: isSpeaking ? 1 : 0,
-          pointerEvents: 'none'
-        }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))' }}>
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" x2="12" y1="19" y2="22"/>
-          </svg>
+        <div style={{ position: "relative", width: 80, height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
+
+          {/* Orange ripple rings */}
+          {[0, 0.55, 1.1].map((delay, i) => (
+            <div key={i} style={{
+              position: "absolute",
+              width: 80, height: 80,
+              borderRadius: "50%",
+              border: "1.5px solid rgba(249,115,22,0.8)",
+              opacity: 0,
+              animation: isSpeaking
+                ? `ripple 2s cubic-bezier(0.2,0.6,0.4,1) ${delay}s infinite`
+                : "none",
+              pointerEvents: "none",
+            }} />
+          ))}
+
+          {/* Button — orange radial gradient matching WisprType's CTA */}
+          <div style={{
+            position: "relative",
+            width: 60, height: 60,
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 34% 28%, #fb923c, #c2410c)",
+            border: "1.5px solid rgba(251,146,60,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "transform 0.45s cubic-bezier(0.16,1,0.3,1), box-shadow 0.45s cubic-bezier(0.16,1,0.3,1), opacity 0.35s ease",
+            boxShadow: isSpeaking
+              ? "inset 0 3px 5px rgba(255,200,100,0.35), inset 0 -4px 7px rgba(0,0,0,0.6), 0 0 18px rgba(249,115,22,0.75), 0 0 44px rgba(249,115,22,0.4)"
+              : "inset 0 2px 3px rgba(255,200,100,0.3), inset 0 -3px 5px rgba(0,0,0,0.5), 0 2px 10px rgba(0,0,0,0.6)",
+            opacity: isSpeaking ? 1 : 0,
+            animation: isSpeaking ? "breathe 1.8s ease-in-out infinite" : "none",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}>
+            <svg
+              width="26" height="26" viewBox="0 0 24 24"
+              fill="none" stroke="rgba(255,255,255,0.95)"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ position: "absolute", opacity: isSpeaking ? 0 : 1, transition: "opacity 0.3s ease" }}
+            >
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" x2="12" y1="19" y2="22"/>
+            </svg>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 3, opacity: isSpeaking ? 1 : 0, transition: "opacity 0.3s ease" }}>
+              {[
+                { delay: "-0.30s", peak: 16 },
+                { delay: "-0.10s", peak: 22 },
+                { delay:  "0.00s", peak: 20 },
+                { delay: "-0.20s", peak: 18 },
+                { delay: "-0.45s", peak: 14 },
+              ].map((bar, i) => (
+                <div key={i} style={{
+                  width: 3, height: 5,
+                  background: "rgba(255,255,255,0.95)",
+                  borderRadius: 2,
+                  animation: isSpeaking ? `barBounce 0.9s ease-in-out ${bar.delay} infinite` : "none",
+                  ["--peak" as any]: `${bar.peak}px`,
+                }} />
+              ))}
+            </div>
+          </div>
         </div>
+
         <style>{`
-          @keyframes pulseGlow {
-            0% { transform: scale(1.1); box-shadow: inset 0 4px 6px rgba(255,255,255,0.6), inset 0 -4px 6px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,0,0.6); }
-            100% { transform: scale(1.25); box-shadow: inset 0 4px 6px rgba(255,255,255,0.7), inset 0 -4px 6px rgba(0,0,0,0.6), 0 0 50px rgba(255,0,0,1); }
+          @keyframes ripple {
+            0%   { transform: scale(1);   opacity: 0.8; }
+            100% { transform: scale(2.4); opacity: 0;   }
+          }
+          @keyframes breathe {
+            0%,100% { transform: scale(1.08); box-shadow: inset 0 3px 5px rgba(255,200,100,0.35), inset 0 -4px 7px rgba(0,0,0,0.6), 0 0 16px rgba(249,115,22,0.7), 0 0 38px rgba(249,115,22,0.3); }
+            50%      { transform: scale(1.15); box-shadow: inset 0 3px 5px rgba(255,200,100,0.45), inset 0 -4px 7px rgba(0,0,0,0.6), 0 0 28px rgba(249,115,22,0.95), 0 0 60px rgba(249,115,22,0.5); }
+          }
+          @keyframes barBounce {
+            0%,100% { height: 5px;         opacity: 0.55; }
+            50%      { height: var(--peak); opacity: 1; }
           }
         `}</style>
       </Html>
     </group>
-  )
+  );
 }
 
 function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, currentExampleIndex: number }) {

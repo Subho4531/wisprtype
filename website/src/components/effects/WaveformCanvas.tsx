@@ -37,62 +37,72 @@ const WaveformCanvas: React.FC<WaveformCanvasProps> = ({ className, barCount = 3
       const h = rect.height;
 
       ctx.clearRect(0, 0, w, h);
-      time += 0.02;
+      
+      // Highly fluid responsive time step
+      time += 0.04;
 
-      const barWidth = Math.max(2, (w / barCount) * 0.5);
+      // Narrower multiplier for sleek and elegant bar structure
+      const barWidth = Math.max(2, (w / barCount) * 0.38);
       const gap = (w - barWidth * barCount) / (barCount + 1);
+
+      // Organic speech activity pacing
+      const speechVolume = 0.6 + 0.4 * Math.sin(time * 0.9) * Math.cos(time * 0.35);
 
       for (let i = 0; i < barCount; i++) {
         const x = gap + i * (barWidth + gap);
         const centerX = barCount / 2;
         const distFromCenter = Math.abs(i - centerX) / centerX;
+        
+        // Symmetrical envelope that keeps edges beautifully active
+        const envelope = Math.sin((i / (barCount - 1)) * Math.PI) * 0.82 + 0.18;
 
-        // Multiple sine frequencies for organic movement
-        const wave1 = Math.sin(time * 2.5 + i * 0.3) * 0.4;
-        const wave2 = Math.sin(time * 1.8 + i * 0.5) * 0.3;
-        const wave3 = Math.cos(time * 3.2 + i * 0.2) * 0.2;
-        const envelope = 1 - distFromCenter * 0.6;
+        // Multiple overlapping sine waves for high-fidelity physics
+        const wave1 = Math.sin(time * 3.4 + i * 0.3) * 0.45;
+        const wave2 = Math.sin(time * 1.8 - i * 0.18) * 0.35;
+        const wave3 = Math.cos(time * 5.2 + i * 0.5) * 0.2;
 
-        const amplitude = Math.abs(wave1 + wave2 + wave3) * envelope;
-        const barHeight = Math.max(4, amplitude * h * 0.7);
-
+        const amplitude = Math.abs(wave1 + wave2 + wave3) * envelope * speechVolume;
+        
+        // Dynamic scaled bar height
+        const barHeight = Math.max(3, amplitude * h * 0.85);
         const y = (h - barHeight) / 2;
 
-        // Layer 1: Outer glow
+        // Layer 1: Sleek outer pink neon glow
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#ff0000';
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#FF2D7A';
+        ctx.fillStyle = 'rgba(255, 45, 122, 0.08)';
         ctx.beginPath();
-        ctx.roundRect(x - 2, y - 2, barWidth + 4, barHeight + 4, barWidth);
+        ctx.roundRect(x - 1, y - 1, barWidth + 2, barHeight + 2, barWidth / 2);
         ctx.fill();
         ctx.restore();
 
-        // Layer 2: Mid glow
+        // Layer 2: Sleek mid neon blue glow
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 6;
         ctx.shadowColor = '#66AAFF';
-        ctx.fillStyle = 'rgba(102, 170, 255, 0.3)';
+        ctx.fillStyle = 'rgba(102, 170, 255, 0.18)';
         ctx.beginPath();
         ctx.roundRect(x, y, barWidth, barHeight, barWidth / 2);
         ctx.fill();
         ctx.restore();
 
-        // Layer 3: Core (white-hot center)
+        // Layer 3: High-contrast Core gradient (white-hot center with pink top and blue bottom)
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = 'source-over';
 
         const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-        gradient.addColorStop(0, '#ff0000');
-        gradient.addColorStop(0.3, '#FFFFFF');
-        gradient.addColorStop(0.7, '#FFFFFF');
-        gradient.addColorStop(1, '#66AAFF');
+        gradient.addColorStop(0, '#FF2D7A');    // Pink peak
+        gradient.addColorStop(0.35, '#FFFFFF'); // White core
+        gradient.addColorStop(0.65, '#FFFFFF'); // White core
+        gradient.addColorStop(1, '#66AAFF');    // Blue base
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.roundRect(x + 1, y + 1, barWidth - 2, barHeight - 2, barWidth / 2);
+        // Slightly inset by 0.5px for crisp subpixel grid-alignment
+        ctx.roundRect(x + 0.5, y + 0.5, barWidth - 1, barHeight - 1, (barWidth - 1) / 2);
         ctx.fill();
         ctx.restore();
       }
