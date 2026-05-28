@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { Card } from "../cards/Card";
 import { TranscriptionEntry } from "../../types";
-
+import { Inbox } from "lucide-react";
 interface AnalyticsTabProps {
   history: TranscriptionEntry[];
 }
@@ -33,7 +33,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ history }) => {
       .map(([name, val]) => ({ name, val }));
   }, [history]);
 
-  const topWord = sortedWords[0];
 
   return (
     <div className="grid grid-cols-1 gap-px bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 mb-24 transition-colors">
@@ -44,35 +43,23 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ history }) => {
           </p>
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
-              <span className="text-4xl mb-4">📊</span>
+              <Inbox className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" strokeWidth={1.5} />
               <p className="text-zinc-400 dark:text-zinc-500 text-sm text-center">No data yet. Start transcribing to see your word frequency analytics.</p>
             </div>
           ) : (
             <>
-              {topWord && (
-                <div className="mb-6 p-4 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg flex items-center gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Top Word</span>
-                    <span className="text-3xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">{topWord.name}</span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{topWord.val} occurrences</span>
-                  </div>
-                  <div className="ml-auto">
-                    <div className="flex items-end gap-0.5 h-8">
-                      {sortedWords.slice(0, 8).map((w, i) => (
-                        <div key={w.name} className="w-2 bg-orange-500 rounded-t" style={{ height: `${(w.val / topWord.val) * 100}%`, opacity: 1 - i * 0.1 }} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="h-full min-h-[400px] w-full">
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={sortedWords} layout="vertical" margin={{ left: 40, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="currentColor" className="text-zinc-300 dark:text-zinc-800" />
-                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 'bold' }} className="text-zinc-500 dark:text-zinc-400" />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 'bold' }} className="text-zinc-500 dark:text-zinc-400" />
-                    <Tooltip cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} contentStyle={{ borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                    <Bar dataKey="val" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
+              <div className="h-full min-h-[500px] w-full text-black dark:text-white">
+                <ResponsiveContainer width="100%" height={500}>
+                  <BarChart data={sortedWords} layout="vertical" margin={{ top: 20, right: 20, bottom: 10, left: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="currentColor" className="text-zinc-300 dark:text-zinc-700" />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 12, fontWeight: '500' }} className="text-zinc-500 dark:text-zinc-400" />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 13, fontWeight: '600' }} className="text-zinc-900 dark:text-zinc-100" width={80} interval={0} />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }} 
+                      contentStyle={{ borderRadius: 0, border: '1px solid #000', background: '#000', color: '#fff' }} 
+                      itemStyle={{ color: '#fff', fontWeight: 'bold' }} 
+                    />
+                    <Bar dataKey="val" fill="currentColor" radius={[0, 0, 0, 0]} barSize={24} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

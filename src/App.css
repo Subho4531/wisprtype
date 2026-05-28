@@ -73,28 +73,31 @@ textarea {
   height: 24px;
   background: var(--zinc-200);
   display: block;
-  border-radius: 9999px; /* Strict UI design has sharp rectangular elements */
+  border-radius: 0;
   position: relative;
   border: 1px solid var(--zinc-300);
 }
 .switch-label:after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
+  top: -1px;
+  left: -1px;
+  width: 24px;
+  height: 24px;
   background: #fff;
   transition: 0.2s;
   border: 1px solid var(--zinc-300);
+  border-radius: 0;
 }
 .switch-input:checked + .switch-label {
   background: #000000;
+  border-color: #000000;
 }
 .switch-input:checked + .switch-label:after {
-  left: calc(100% - 2px);
-  transform: translateX(-100%);
+  left: 100%;
+  transform: translateX(calc(-100% + 1px));
   background: #ffffff;
+  border-color: #000000;
 }
 
 /* Dark mode overrides for form elements */

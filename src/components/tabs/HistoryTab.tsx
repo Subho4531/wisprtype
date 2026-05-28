@@ -95,7 +95,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ history, loadHistory }) 
               placeholder="Search history..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors text-sm text-zinc-900 dark:text-zinc-100"
+              className="w-full !pl-10 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors text-sm text-zinc-900 dark:text-zinc-100"
             />
           </div>
           <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-2">

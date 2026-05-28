@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Card } from "../cards/Card";
 import { AppSettings } from "../../types";
@@ -15,6 +15,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   micOptions
 }) => {
 
+  const [localHotkey, setLocalHotkey] = useState(settings.hotkey);
+  
+  useEffect(() => {
+    setLocalHotkey(settings.hotkey);
+  }, [settings.hotkey]);
+
   const handleHotkeyRecorder = (e: React.KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const keys = [];
@@ -23,16 +29,24 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     if (e.shiftKey) keys.push('Shift');
     if (e.metaKey) keys.push('Command');
     
+
     if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
       let keyName = e.key;
       if (keyName === ' ') keyName = 'Space';
       if (keyName.length === 1) keyName = keyName.toUpperCase();
       keys.push(keyName);
+
     }
     
     if (keys.length > 0) {
-      updateSetting({ hotkey: keys.join('+') });
+      const newHotkey = keys.join('+');
+      setLocalHotkey(newHotkey);
+      updateSetting({ hotkey: newHotkey });
     }
+  };
+  
+  const handleHotkeyKeyUp = () => {
+    // No-op since we now support modifier-only hotkeys natively via low-level hooks
   };
 
   return (
@@ -168,9 +182,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Global Trigger Hotkey</label>
             <input 
               type="text" 
-              value={settings.hotkey}
+              value={localHotkey}
               readOnly
               onKeyDown={handleHotkeyRecorder}
+              onKeyUp={handleHotkeyKeyUp}
               placeholder="Click and press keys..."
               className="w-full font-mono text-sm uppercase bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 cursor-pointer focus:bg-zinc-100"
             />
@@ -178,7 +193,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
           <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
             <div>
-              <span className="font-bold text-sm block">Launch on OS Startup</span>
+              <span className="font-bold text-sm block text-black dark:text-white">Launch on OS Startup</span>
             </div>
             <div className="toggle-switch-wrapper">
               <input 
@@ -191,7 +206,20 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
           <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
             <div>
-              <span className="font-bold text-sm block">Instant Text Paste</span>
+              <span className="font-bold text-sm block text-black dark:text-white">Start Minimized</span>
+            </div>
+            <div className="toggle-switch-wrapper">
+              <input 
+                type="checkbox" id="startMinimized" className="switch-input"
+                checked={settings.startMinimized}
+                onChange={(e) => updateSetting({ startMinimized: e.target.checked })}
+              />
+              <label htmlFor="startMinimized" className="switch-label">Toggle</label>
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
+            <div>
+              <span className="font-bold text-sm block text-black dark:text-white">Instant Text Paste</span>
             </div>
             <div className="toggle-switch-wrapper">
               <input 

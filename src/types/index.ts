@@ -1,6 +1,7 @@
 export interface AppSettings {
   hotkey: string;
   launchOnStartup: boolean;
+  startMinimized: boolean;
   pasteImmediately: boolean;
   microphoneDevice: string;
   gain: number;

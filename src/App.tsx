@@ -33,12 +33,7 @@ function App() {
   const { history, loadHistory } = useHistory();
   const { isDark, toggleTheme } = useTheme();
 
-  // Mock mic options for UI (To be replaced with real backend data in Phase 3)
-  const micOptions = [
-    "Default System Microphone",
-    "Hardware High-Definition Audio Device",
-    "Virtual Audio Cable (Line-1)",
-  ];
+  const [micOptions, setMicOptions] = useState<string[]>(["Default System Microphone"]);
 
   useEffect(() => {
     setWindowLabel(getCurrentWindow().label);
@@ -56,13 +51,17 @@ function App() {
       })
       .catch((err) => console.error("Failed to fetch initial state:", err));
 
+    invoke<string[]>("get_audio_devices")
+      .then((devices) => setMicOptions(devices))
+      .catch((err) => console.error("Failed to fetch audio devices:", err));
+
     const unlistenState = listen<{ state: string; message?: string }>("state-changed", (event) => {
       const newState = event.payload.state;
       setAppState((prev) => {
         if (prev !== "Idle" && newState === "Idle") {
-          setTimeout(loadHistory, 500); 
+          setTimeout(loadHistory, 500);
         }
-        
+
         // Play feedback sounds when starting or stopping recording (only in main window to prevent echo)
         if (getCurrentWindow().label === "main") {
           if (prev !== "Recording" && newState === "Recording") {
@@ -71,7 +70,7 @@ function App() {
             playFeedbackSound('stop');
           }
         }
-        
+
         return newState as OverlayState;
       });
       setStatusMessage(event.payload.message || "");
@@ -107,7 +106,7 @@ function App() {
       unlistenModelProgress.then((fn) => fn());
       unlistenFormatError.then((fn) => fn());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (windowLabel === "overlay") {
@@ -126,33 +125,20 @@ function App() {
       <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
         {/* Top Navigation Bar */}
         <div className="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-300">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src="/Wisprtype.png" alt="WisprType Logo" className="w-8 h-8 object-contain" />
-            </div>
-            <div>
-              <span
-                style={{
-                  fontFamily: "Outfit, sans-serif",
-                  fontSize: '1.4rem',
-                  fontWeight: 800,
-                  letterSpacing: '-0.5px',
-                }}
-                className="font-black text-black dark:text-white"
+          <div className="flex items-center gap-3 shrink-0">
+            {/* <div className="w-9 h-9 flex items-center justify-center shrink-0">
+              <img src="src-tauri/icons/icon.png" className="w-full h-full object-contain" alt="Logo" />
+            </div> */}
+            <div className="flex items-baseline gap-2 pt-1">
+              <h1 
+                className="font-bold text-2xl tracking-tighter leading-none text-zinc-900 dark:text-zinc-50"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
-                Wispr
-                <span
-                  style={{
-                    background: 'linear-gradient(135deg, #FF4500, #FF8C00, #FFD700)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    color: 'transparent',
-                  }}
-                >
-                  Type
-                </span>
+                WisprType
+              </h1>
+              <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 font-semibold tracking-widest uppercase">
+                V 1.0
               </span>
-              <p className="text-[10px] font-mono text-zinc-400 font-bold tracking-widest mt-1 uppercase">V 1.0</p>
             </div>
           </div>
 
@@ -180,19 +166,16 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button 
-              onClick={toggleTheme} 
+            <button
+              onClick={toggleTheme}
               className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
               aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 dark:text-zinc-500">
-              <span className={cn(
-                "h-2 w-2 rounded-full bg-emerald-500 animate-pulse",
-                appState === "Recording" ? "bg-red-500" : ""
-              )}></span>
-              {appState === "Idle" ? "SYSTEM_READY" : `SYSTEM_${appState.toUpperCase()}`}
+              
+              
             </div>
           </div>
         </div>
