@@ -28,14 +28,14 @@ impl AudioRecorder {
     /// Starts recording from the default input device.
     /// Returns a receiver for audio chunks, along with sample rate and channels.
     /// Returns an error if recording is already in progress.
-    pub fn start_recording(&self) -> Result<(mpsc::UnboundedReceiver<Vec<f32>>, u32, u16), String> {
+    pub fn start_recording(&self, device_name: Option<&str>) -> Result<(mpsc::UnboundedReceiver<Vec<f32>>, u32, u16), String> {
         let mut active = self.active_recorder.lock().map_err(|e| e.to_string())?;
         if active.is_some() {
             return Err("Recording is already in progress".to_string());
         }
 
         let (tx, rx) = mpsc::unbounded_channel();
-        let recorder = ActiveRecorder::start(tx)?;
+        let recorder = ActiveRecorder::start(tx, device_name)?;
         let sr = recorder.sample_rate;
         let ch = recorder.channels;
         *active = Some(recorder);
@@ -78,7 +78,7 @@ mod tests {
             let recorder = AudioRecorder::new();
             
             println!("Starting recording for 3 seconds... Please speak into your microphone!");
-            let (mut rx, sr, ch) = recorder.start_recording().expect("Failed to start recording");
+            let (mut rx, sr, ch) = recorder.start_recording(None).expect("Failed to start recording");
             
             let mut all_samples = Vec::new();
             

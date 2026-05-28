@@ -8,6 +8,8 @@ pub struct AppSettings {
     pub hotkey: String,
     #[serde(rename = "launchOnStartup")]
     pub launch_on_startup: bool,
+    #[serde(default, rename = "startMinimized")]
+    pub start_minimized: bool,
     #[serde(rename = "pasteImmediately")]
     pub paste_immediately: bool,
     #[serde(rename = "microphoneDevice")]
@@ -31,6 +33,7 @@ impl Default for AppSettings {
         Self {
             hotkey: "Control + Shift + Space".to_string(),
             launch_on_startup: true,
+            start_minimized: false,
             paste_immediately: true,
             microphone_device: "Default System Microphone".to_string(),
             gain: 75,

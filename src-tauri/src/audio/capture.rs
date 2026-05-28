@@ -1,6 +1,24 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use tokio::sync::mpsc;
 
+pub fn list_input_devices() -> Result<Vec<String>, String> {
+    let host = cpal::default_host();
+    let devices = host.input_devices().map_err(|e| format!("Failed to get input devices: {}", e))?;
+    
+    let mut names = Vec::new();
+    for device in devices {
+        if let Ok(name) = device.name() {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+    }
+    
+    let mut final_list = vec!["Default System Microphone".to_string()];
+    final_list.extend(names);
+    Ok(final_list)
+}
+
 /// ActiveRecorder manages the active CPAL stream and streams captured samples to a channel.
 pub struct ActiveRecorder {
     stream: cpal::Stream,
@@ -11,11 +29,21 @@ pub struct ActiveRecorder {
 impl ActiveRecorder {
     /// Starts recording from the default audio input device.
     /// Spawns a background thread through cpal and sends chunks via the provided sender.
-    pub fn start(sender: mpsc::UnboundedSender<Vec<f32>>) -> Result<Self, String> {
+    pub fn start(sender: mpsc::UnboundedSender<Vec<f32>>, device_name: Option<&str>) -> Result<Self, String> {
         let host = cpal::default_host();
-        let device = host
-            .default_input_device()
-            .ok_or_else(|| "No default microphone input device found. Please connect a microphone.".to_string())?;
+        
+        let device = if let Some(name) = device_name {
+            if name == "Default System Microphone" {
+                host.default_input_device()
+            } else {
+                host.input_devices()
+                    .map_err(|e| e.to_string())?
+                    .find(|d| d.name().map(|n| n == name).unwrap_or(false))
+            }
+        } else {
+            host.default_input_device()
+        }
+        .ok_or_else(|| format!("Could not find microphone device: {:?}", device_name))?;
 
         let config = device
             .default_input_config()

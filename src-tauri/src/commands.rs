@@ -140,6 +140,11 @@ pub fn get_settings(cached: State<'_, CachedSettings>) -> Result<String, String>
 }
 
 #[tauri::command]
+pub fn get_audio_devices() -> Result<Vec<String>, String> {
+    crate::audio::capture::list_input_devices()
+}
+
+#[tauri::command]
 pub fn save_settings(
     app: AppHandle,
     cached: State<'_, CachedSettings>,
@@ -167,21 +172,27 @@ pub fn save_settings(
         println!("HOTKEY: Dynamic change detected. Unregistering '{}' and registering '{}'", old_hotkey, new_hotkey);
         
         // Try unregistering old hotkey
-        if let Ok(old_shortcut) = old_hotkey.parse::<Shortcut>() {
-            let _ = app.global_shortcut().unregister(old_shortcut);
+        if old_hotkey != "Control+Super" && old_hotkey != "Super+Control" {
+            if let Ok(old_shortcut) = old_hotkey.parse::<Shortcut>() {
+                let _ = app.global_shortcut().unregister(old_shortcut);
+            }
         }
 
         // Try registering new hotkey
-        match new_hotkey.parse::<Shortcut>() {
-            Ok(new_shortcut) => {
-                if let Err(e) = app.global_shortcut().register(new_shortcut) {
-                    eprintln!("HOTKEY ERROR: Failed to dynamically register new hotkey '{}': {}", new_hotkey, e);
-                    return Err(format!("Failed to register hotkey on OS: {}", e));
+        if new_hotkey == "Control+Super" || new_hotkey == "Super+Control" {
+            println!("HOTKEY: Delegating '{}' to low-level rdev listener", new_hotkey);
+        } else {
+            match new_hotkey.parse::<Shortcut>() {
+                Ok(new_shortcut) => {
+                    if let Err(e) = app.global_shortcut().register(new_shortcut) {
+                        eprintln!("HOTKEY ERROR: Failed to dynamically register new hotkey '{}': {}", new_hotkey, e);
+                        return Err(format!("Failed to register hotkey on OS: {}", e));
+                    }
                 }
-            }
-            Err(e) => {
-                eprintln!("HOTKEY ERROR: Could not parse new hotkey string '{}': {}", new_hotkey, e);
-                return Err(format!("Invalid hotkey format: {}", e));
+                Err(e) => {
+                    eprintln!("HOTKEY ERROR: Could not parse hotkey string '{}': {}", new_hotkey, e);
+                    return Err(format!("Invalid hotkey format: {}", e));
+                }
             }
         }
     }
@@ -236,7 +247,7 @@ pub fn start_recording_pipeline(
         };
 
         // Start recording audio stream
-        let (mut rx, sr, ch) = recorder.start_recording()?;
+        let (mut rx, sr, ch) = recorder.start_recording(Some(&settings.microphone_device))?;
         set_state(app.clone(), state_container, "Recording".to_string(), None)?;
 
         let app_clone = app.clone();

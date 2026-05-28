@@ -16,7 +16,7 @@
         "title": "Wisprtype V1 - Settings",
         "width": 800,
         "height": 600,
-        "visible": true,
+        "visible": false,
         "resizable": true
       },
       {

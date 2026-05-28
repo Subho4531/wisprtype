@@ -98,9 +98,17 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Show the main settings window on startup
+            // Load settings early to check start_minimized
+            let settings = settings::load_settings().unwrap_or_default();
+            
+            // Manage settings state immediately
+            app.manage(commands::CachedSettings(std::sync::Arc::new(std::sync::RwLock::new(settings.clone()))));
+
+            // Show the main settings window on startup if not minimized
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
+                if !settings.start_minimized {
+                    let _ = window.show();
+                }
                 
                 // Intercept window close to hide instead of destroy, allowing the tray to reopen it
                 let window_clone = window.clone();
@@ -111,29 +119,81 @@ pub fn run() {
                     }
                 });
             }
+            
+            // Start low-level keyboard listener for modifier-only shortcuts
+            let app_handle_for_rdev = app.handle().clone();
+            std::thread::spawn(move || {
+                let ctrl_pressed = std::sync::Arc::new(std::sync::Mutex::new(false));
+                let meta_pressed = std::sync::Arc::new(std::sync::Mutex::new(false));
+                let mut is_triggered = false;
 
-            // Load settings and register the global hotkey
-            let settings = settings::load_settings().unwrap_or_default();
+                let callback = move |event: rdev::Event| {
+                    let mut ctrl = ctrl_pressed.lock().unwrap();
+                    let mut meta = meta_pressed.lock().unwrap();
+                    
+                    match event.event_type {
+                        rdev::EventType::KeyPress(key) => {
+                            if key == rdev::Key::ControlLeft || key == rdev::Key::ControlRight { *ctrl = true; }
+                            if key == rdev::Key::MetaLeft || key == rdev::Key::MetaRight { *meta = true; }
+                            
+                            if *ctrl && *meta {
+                                if !is_triggered {
+                                    use tauri::Manager;
+                                    if let Some(cached) = app_handle_for_rdev.try_state::<commands::CachedSettings>() {
+                                        let settings = cached.0.read().unwrap();
+                                        let hotkey_str = settings.hotkey.clone().replace(" ", "").replace("Ctrl", "Control").replace("Command", "Super").replace("Meta", "Super").replace("Win", "Super");
+                                        
+                                        if hotkey_str == "Control+Super" || hotkey_str == "Super+Control" {
+                                            is_triggered = true;
+                                            commands::hotkey_pressed(app_handle_for_rdev.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        rdev::EventType::KeyRelease(key) => {
+                            if key == rdev::Key::ControlLeft || key == rdev::Key::ControlRight { *ctrl = false; }
+                            if key == rdev::Key::MetaLeft || key == rdev::Key::MetaRight { *meta = false; }
+                            
+                            // Reset the trigger flag when either modifier is released
+                            if (!*ctrl || !*meta) && is_triggered {
+                                is_triggered = false;
+                                commands::hotkey_released(app_handle_for_rdev.clone());
+                            }
+                        },
+                        _ => ()
+                    }
+                };
+
+                if let Err(error) = rdev::listen(callback) {
+                    eprintln!("Error starting rdev listener: {:?}", error);
+                }
+            });
+
+            // Register the global hotkey
             let hotkey_str = settings.hotkey.clone()
                 .replace(" ", "")
                 .replace("Ctrl", "Control")
                 .replace("Command", "Super")
                 .replace("Meta", "Super")
                 .replace("Win", "Super");
-            app.manage(commands::CachedSettings(std::sync::Arc::new(std::sync::RwLock::new(settings))));
             
-            use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-            match hotkey_str.parse::<Shortcut>() {
-                Ok(shortcut) => {
-                    if let Err(e) = app.global_shortcut().register(shortcut) {
-                        eprintln!("CRITICAL: Failed to register global hotkey '{}' on startup: {}", hotkey_str, e);
-                    } else {
-                        println!("HOTKEY: Successfully registered global hotkey '{}' on startup", hotkey_str);
+            if hotkey_str != "Control+Super" && hotkey_str != "Super+Control" {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                match hotkey_str.parse::<Shortcut>() {
+                    Ok(shortcut) => {
+                        if let Err(e) = app.global_shortcut().register(shortcut) {
+                            eprintln!("CRITICAL: Failed to register global hotkey '{}' on startup: {}", hotkey_str, e);
+                        } else {
+                            println!("HOTKEY: Successfully registered global hotkey '{}' on startup", hotkey_str);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("CRITICAL: Could not parse hotkey string '{}': {}", hotkey_str, e);
                     }
                 }
-                Err(e) => {
-                    eprintln!("CRITICAL: Could not parse hotkey string '{}': {}", hotkey_str, e);
-                }
+            } else {
+                println!("HOTKEY: Delegating '{}' to low-level rdev listener", hotkey_str);
             }
 
             Ok(())
@@ -151,7 +211,8 @@ pub fn run() {
             commands::get_history,
             commands::delete_history_entry,
             commands::clear_history,
-            commands::download_model
+            commands::download_model,
+            commands::get_audio_devices
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
