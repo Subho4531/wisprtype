@@ -3,13 +3,13 @@ use std::sync::Mutex;
 use whisper_rs::{WhisperContext, FullParams, SamplingStrategy};
 
 pub struct SharedWhisperState {
-    pub context: Mutex<Option<(PathBuf, WhisperContext)>>,
+    pub context: std::sync::Arc<Mutex<Option<(PathBuf, WhisperContext)>>>,
 }
 
 impl Default for SharedWhisperState {
     fn default() -> Self {
         Self {
-            context: Mutex::new(None),
+            context: std::sync::Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -40,7 +40,12 @@ pub fn transcribe(state: &SharedWhisperState, model_path: &Path, samples: &[f32]
     let ctx = &cache.as_ref().unwrap().1;
 
     // Create a new parameter set using Greedy sampling strategy
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 5 });
+    params.set_suppress_blank(true);
+    params.set_no_timestamps(true);
+    params.set_single_segment(false);
+    params.set_max_initial_ts(1.0);
+    params.set_initial_prompt("Wisprtype transcription: ");
     
     // Suppress logs and console output to maintain professional, silent background execution
     params.set_print_special(false);
@@ -73,7 +78,28 @@ pub fn transcribe(state: &SharedWhisperState, model_path: &Path, samples: &[f32]
         let segment_text = whisper_state
             .full_get_segment_text(i)
             .map_err(|e| format!("Failed to read text from segment {}: {}", i, e))?;
-        transcription.push_str(&segment_text);
+            
+        let lower = segment_text.trim().to_lowercase();
+        let stripped = lower.replace(".", "").replace(",", "").replace("!", "").replace("?", "")
+                            .replace("[", "").replace("]", "").replace("(", "").replace(")", "");
+        
+        let is_hallucination = 
+            stripped == "thank you" ||
+            stripped == "thanks" ||
+            stripped == "subscribe" ||
+            stripped == "thank you for watching" ||
+            stripped == "thanks for watching" ||
+            stripped == "please subscribe" ||
+            stripped == "subtitle by amaraorg" ||
+            stripped == "amaraorg" ||
+            stripped == "music" ||
+            stripped == "silence" ||
+            stripped.contains("subscribe to my channel") ||
+            stripped.contains("thanks for watching");
+
+        if !is_hallucination {
+            transcription.push_str(&segment_text);
+        }
     }
 
     let cleaned_text = transcription.trim().to_string();

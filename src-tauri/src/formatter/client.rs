@@ -2,6 +2,7 @@ use serde_json::json;
 
 /// Calls an LLM provider to refine/format speech transcription.
 pub async fn refine_text_llm(
+    client: &reqwest::Client,
     text: &str,
     system_prompt: &str,
     provider: &str,
@@ -13,7 +14,6 @@ pub async fn refine_text_llm(
     }
 
     println!("Calling {} endpoint for formatting...", provider);
-    let client = reqwest::Client::new();
     
     let (url, payload, auth_header) = match provider.to_lowercase().as_str() {
         "ollama" => {

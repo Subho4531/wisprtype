@@ -30,7 +30,7 @@ pub fn copy_and_paste(text: &str) -> Result<(), String> {
 
     // Allow a small delay for the OS clipboard buffer to update and settle,
     // and for the overlay window to hide and restore focus to the target app.
-    sleep(Duration::from_millis(150));
+    sleep(Duration::from_millis(75));
 
     println!("Simulating OS paste keystroke (Ctrl+V/Cmd+V)...");
     

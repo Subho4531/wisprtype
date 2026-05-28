@@ -48,6 +48,27 @@ pub fn downmix_to_mono(input: &[f32], channels: u16) -> Vec<f32> {
     output
 }
 
+pub fn resample_into(input: &[f32], from_hz: u32, to_hz: u32, output: &mut Vec<f32>) {
+    if from_hz == to_hz {
+        output.extend_from_slice(input);
+        return;
+    }
+    let ratio = from_hz as f64 / to_hz as f64;
+    let new_len = (input.len() as f64 / ratio).round() as usize;
+    output.reserve(new_len);
+
+    for i in 0..new_len {
+        let pos = i as f64 * ratio;
+        let idx = pos.floor() as usize;
+        let fract = pos as f32 - idx as f32;
+        if idx + 1 < input.len() {
+            output.push(input[idx] * (1.0 - fract) + input[idx + 1] * fract);
+        } else if idx < input.len() {
+            output.push(input[idx]);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

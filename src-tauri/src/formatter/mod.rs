@@ -10,6 +10,7 @@ const PERMANENT_PROMPT: &str = "You are an expert transcription formatter. Corre
 /// Ensures extreme resilience by automatically falling back to rule-based formatting if network or local LLM requests fail.
 pub async fn format_transcription(
     text: &str,
+    http_client: &reqwest::Client,
     provider: &str,
     model: &str,
     api_key: &str,
@@ -26,7 +27,7 @@ pub async fn format_transcription(
         }
         _ => {
             println!("LLM formatting selected (Provider: {}, Model: {}).", provider, model);
-            match refine_text_llm(trimmed, PERMANENT_PROMPT, provider, model, api_key).await {
+            match refine_text_llm(http_client, trimmed, PERMANENT_PROMPT, provider, model, api_key).await {
                 Ok(refined) => refined,
                 Err(e) => {
                     eprintln!("LLM formatting failed ({}); falling back to offline rule refiner.", e);

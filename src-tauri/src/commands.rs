@@ -38,6 +38,8 @@ impl Default for HotkeyData {
 
 pub struct HotkeyState(pub Mutex<HotkeyData>);
 
+pub struct CachedSettings(pub std::sync::Arc<std::sync::RwLock<crate::settings::AppSettings>>);
+
 #[tauri::command]
 pub fn get_state(state_container: State<'_, StateContainer>) -> String {
     let state = state_container.0.lock().unwrap();
@@ -132,24 +134,26 @@ pub fn open_settings(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn get_settings() -> Result<String, String> {
-    let settings = crate::settings::load_settings()?;
+pub fn get_settings(cached: State<'_, CachedSettings>) -> Result<String, String> {
+    let settings = cached.0.read().unwrap().clone();
     serde_json::to_string(&settings).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn save_settings(
     app: AppHandle,
+    cached: State<'_, CachedSettings>,
     settings_str: String,
 ) -> Result<(), String> {
     let settings: crate::settings::AppSettings = serde_json::from_str(&settings_str)
         .map_err(|e| format!("Failed to parse settings JSON: {}", e))?;
 
     // Load old settings to compare hotkey change
-    let old_settings = crate::settings::load_settings().unwrap_or_default();
+    let old_settings = cached.0.read().unwrap().clone();
 
     // Save settings to config file
     crate::settings::save_settings(&settings)?;
+    *cached.0.write().unwrap() = settings.clone();
 
     // Dynamically update Global Shortcut registration on the OS
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
@@ -221,8 +225,13 @@ pub fn start_recording_pipeline(
 
     if current_state == AppState::Idle {
         // Load settings to get audio gain
-        let settings = crate::settings::load_settings().unwrap_or_default();
-        let gain_multiplier = settings.gain as f32 / 100.0;
+        let cached = app.state::<CachedSettings>();
+        let settings = cached.0.read().unwrap().clone();
+        let gain_multiplier = if settings.gain == 0 {
+            0.0
+        } else {
+            10.0_f32.powf((settings.gain as f32 - 50.0) / 50.0)
+        };
 
         // Start recording audio stream
         let (mut rx, sr, ch) = recorder.start_recording()?;
@@ -230,7 +239,10 @@ pub fn start_recording_pipeline(
 
         let app_clone = app.clone();
         tauri::async_runtime::spawn(async move {
-            let mut all_samples = Vec::new();
+            let mut all_samples = Vec::with_capacity(16000 * 60);
+            let mut mono_buf = Vec::with_capacity(8192);
+            let mut resample_buf = Vec::with_capacity(4096);
+            
             // Phase 2 & 4: Streaming Audio Pipeline & Background Noise Reduction
             let mut denoiser = nnnoiseless::DenoiseState::new();
 
@@ -240,6 +252,7 @@ pub fn start_recording_pipeline(
                 if (gain_multiplier - 1.0).abs() > f32::EPSILON {
                     for sample in chunk.iter_mut() {
                         *sample *= gain_multiplier;
+                        *sample = sample.clamp(-1.0, 1.0);
                         let abs_sample = sample.abs();
                         if abs_sample > peak {
                             peak = abs_sample;
@@ -258,19 +271,28 @@ pub fn start_recording_pipeline(
                 let volume_level = (peak * 100.0).min(100.0);
                 let _ = app_clone.emit("volume-level", volume_level);
 
-                // Downmix to mono
-                let mono_samples = crate::audio::resampler::downmix_to_mono(&chunk, ch);
-                // Resample to 16kHz on the fly
-                let mut resampled_chunk = crate::audio::resampler::resample(&mono_samples, sr, 16000);
+                mono_buf.clear();
+                if ch > 1 {
+                    for frame in chunk.chunks_exact(ch as usize) {
+                        mono_buf.push(frame.iter().sum::<f32>() / ch as f32);
+                    }
+                } else {
+                    mono_buf.extend_from_slice(&chunk);
+                }
                 
-                // nnnoiseless operates on 480-sample chunks (10ms at 48kHz, but we have 16kHz here).
-                // Actually, nnnoiseless expects 48kHz audio. We resampled to 16kHz! 
-                // To keep it simple and safe, we can skip nnnoiseless if it strictly requires 48kHz,
-                // or just accumulate. For phase 4, we accumulate the resampled chunks.
-                // We'll run Whisper incrementally over `all_samples` here if needed,
-                // but since the model processes fast with hardware acceleration, we can just process it at the end.
-                
-                all_samples.extend(resampled_chunk);
+                if sr == 48000 {
+                    let mut denoised_chunk = vec![0.0_f32; 480];
+                    for frame in mono_buf.chunks_exact(480) {
+                        denoiser.process_frame(&mut denoised_chunk, frame);
+                        resample_buf.clear();
+                        crate::audio::resampler::resample_into(&denoised_chunk, sr, 16000, &mut resample_buf);
+                        all_samples.extend_from_slice(&resample_buf);
+                    }
+                } else {
+                    resample_buf.clear();
+                    crate::audio::resampler::resample_into(&mono_buf, sr, 16000, &mut resample_buf);
+                    all_samples.extend_from_slice(&resample_buf);
+                }
             }
 
             // Once channel closes (user stops recording)
@@ -288,7 +310,7 @@ pub fn start_recording_pipeline(
                     let state_container_err = app_clone.state::<StateContainer>();
                     let _ = set_state(app_clone.clone(), state_container_err, "Error".to_string(), Some(e));
                     
-                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
                     let state_container_idle = app_clone.state::<StateContainer>();
                     let _ = set_state(app_clone.clone(), state_container_idle, "Idle".to_string(), None);
                 }
@@ -418,23 +440,71 @@ pub fn hotkey_released(app: AppHandle) {
     }
 }
 
+fn normalize_audio(samples: &mut [f32]) {
+    let max_amplitude = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
+    if max_amplitude > f32::EPSILON && max_amplitude < 0.95 {
+        let scale = 0.95 / max_amplitude;
+        for s in samples.iter_mut() {
+            *s *= scale;
+        }
+    }
+}
+
+fn trim_silence(samples: &[f32], sample_rate: u32) -> &[f32] {
+    let frame_size = (sample_rate as usize * 30) / 1000;
+    let threshold = 0.01_f32;
+
+    let rms = |frame: &[f32]| -> f32 {
+        let sum_sq: f32 = frame.iter().map(|s| s * s).sum();
+        (sum_sq / frame.len() as f32).sqrt()
+    };
+
+    let start = samples.chunks(frame_size).position(|f| rms(f) > threshold).unwrap_or(0) * frame_size;
+    let end = samples.rchunks(frame_size).position(|f| rms(f) > threshold).map(|pos| samples.len() - pos * frame_size).unwrap_or(samples.len());
+
+    let pad = (sample_rate as usize) / 10;
+    let start = start.saturating_sub(pad);
+    let end = (end + pad).min(samples.len());
+    if start >= end {
+        return &[];
+    }
+    &samples[start..end]
+}
+
 async fn process_recording(
     app: AppHandle,
-    samples: Vec<f32>,
+    mut samples: Vec<f32>,
 ) -> Result<String, String> {
     if samples.is_empty() {
         return Err("Audio signal was too short or empty".to_string());
     }
 
+    normalize_audio(&mut samples);
+    let trimmed = trim_silence(&samples, 16000);
+    if trimmed.len() < 1600 {
+        return Err("Audio signal was too short or empty".to_string());
+    }
+    let samples_owned = trimmed.to_vec();
+
     // Load active configurations
-    let settings = crate::settings::load_settings().unwrap_or_default();
+    let cached = app.state::<CachedSettings>();
+    let settings = cached.0.read().unwrap().clone();
 
     // 2. Ensure speech model is present in directory, downloading it if missing
     let model_path = crate::whisper::models::ensure_model_exists(&app, &settings.whisper_model).await?;
+    let model_path_owned = model_path.clone();
 
     // 3. Transcribe audio offline via whisper-rs
     let whisper_state = app.state::<crate::whisper::engine::SharedWhisperState>();
-    let raw_text = crate::whisper::engine::transcribe(&whisper_state, &model_path, &samples)?;
+    let context_arc = whisper_state.context.clone();
+
+    let raw_text = tokio::task::spawn_blocking(move || {
+        let temp_state = crate::whisper::engine::SharedWhisperState { context: context_arc };
+        crate::whisper::engine::transcribe(&temp_state, &model_path_owned, &samples_owned)
+    })
+    .await
+    .map_err(|e| format!("Whisper task panicked: {}", e))?
+    .map_err(|e| e)?;
     if raw_text.trim().is_empty() {
         return Err("Speech not recognized. Please speak closer to your microphone.".to_string());
     }
@@ -444,8 +514,10 @@ async fn process_recording(
     let _ = set_state(app.clone(), state_container.clone(), "Formatting".to_string(), Some("Refining text...".to_string()));
 
     // Polish speech text using selected AI Formatting Engine
+    let http_client = app.state::<std::sync::Arc<reqwest::Client>>();
     let formatted_text = crate::formatter::format_transcription(
         &raw_text,
+        http_client.inner(),
         &settings.cloud_provider,
         &settings.cloud_model,
         &settings.api_key

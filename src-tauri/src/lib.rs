@@ -37,6 +37,7 @@ pub fn run() {
         .manage(commands::StateContainer(Mutex::new(commands::AppState::Idle)))
         .manage(audio::AudioRecorder::new())
         .manage(whisper::engine::SharedWhisperState::default())
+        .manage(std::sync::Arc::new(reqwest::Client::builder().pool_max_idle_per_host(2).timeout(std::time::Duration::from_secs(30)).build().unwrap()))
         .setup(|app| {
             // Build system tray menu
             let title_i = MenuItem::with_id(app, "title", "Wisprtype V1", false, None::<&str>)?;
@@ -113,7 +114,8 @@ pub fn run() {
 
             // Load settings and register the global hotkey
             let settings = settings::load_settings().unwrap_or_default();
-            let hotkey_str = settings.hotkey.replace(" ", "").replace("Ctrl", "Control");
+            let hotkey_str = settings.hotkey.clone().replace(" ", "").replace("Ctrl", "Control");
+            app.manage(commands::CachedSettings(std::sync::Arc::new(std::sync::RwLock::new(settings))));
             
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
             match hotkey_str.parse::<Shortcut>() {
