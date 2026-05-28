@@ -158,8 +158,10 @@ pub fn save_settings(
     // Dynamically update Global Shortcut registration on the OS
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-    let old_hotkey = old_settings.hotkey.replace(" ", "").replace("Ctrl", "Control");
-    let new_hotkey = settings.hotkey.replace(" ", "").replace("Ctrl", "Control");
+    let old_hotkey = old_settings.hotkey.replace(" ", "")
+        .replace("Ctrl", "Control").replace("Command", "Super").replace("Meta", "Super").replace("Win", "Super");
+    let new_hotkey = settings.hotkey.replace(" ", "")
+        .replace("Ctrl", "Control").replace("Command", "Super").replace("Meta", "Super").replace("Win", "Super");
 
     if old_hotkey != new_hotkey {
         println!("HOTKEY: Dynamic change detected. Unregistering '{}' and registering '{}'", old_hotkey, new_hotkey);

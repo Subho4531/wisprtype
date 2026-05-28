@@ -114,7 +114,12 @@ pub fn run() {
 
             // Load settings and register the global hotkey
             let settings = settings::load_settings().unwrap_or_default();
-            let hotkey_str = settings.hotkey.clone().replace(" ", "").replace("Ctrl", "Control");
+            let hotkey_str = settings.hotkey.clone()
+                .replace(" ", "")
+                .replace("Ctrl", "Control")
+                .replace("Command", "Super")
+                .replace("Meta", "Super")
+                .replace("Win", "Super");
             app.manage(commands::CachedSettings(std::sync::Arc::new(std::sync::RwLock::new(settings))));
             
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
