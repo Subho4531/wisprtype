@@ -50,14 +50,16 @@ export default function Header() {
         >
           {/* Logo + Wordmark */}
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <Image src="/icons/wisperflow.png" alt="WisprType Logo" width={36} height={36} style={{ borderRadius: '8px' }} />
+            <Image src="/icons/icon.ico" alt="WisprType Logo" width={32} height={32} style={{ borderRadius: '8px' , margin: "0 auto"  } } />
             <span
               style={{
-                fontFamily: 'Outfit, sans-serif',
+                fontFamily: 'var(--font-heading)',
                 fontSize: '1.4rem',
                 fontWeight: 700,
                 letterSpacing: '-0.5px',
                 color: '#FFFFFF',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
             >
               Wispr

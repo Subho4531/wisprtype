@@ -200,7 +200,7 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
               borderRadius: '12px',
               overflow: 'hidden',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+              boxShadow: 'none',
               boxSizing: 'border-box',
               position: 'relative',
               display: 'flex',
@@ -258,7 +258,7 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
               opacity: appState === 'speaking' ? 1 : 0,
               transition: 'opacity 0.4s ease, transform 0.4s ease',
               pointerEvents: 'none',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              boxShadow: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'

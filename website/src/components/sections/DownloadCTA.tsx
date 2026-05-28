@@ -33,7 +33,7 @@ export default function DownloadCTA() {
             fontWeight: 800,
             color: '#FFFFFF',
             marginBottom: '1.5rem',
-            fontFamily: 'Outfit, sans-serif',
+            fontFamily: '"Bitcount Grid Single", var(--font-heading), sans-serif',
             letterSpacing: '-1.5px',
             lineHeight: 1.15,
           }}

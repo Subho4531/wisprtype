@@ -62,11 +62,11 @@ export default function Comparison() {
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            style={{ flex: '1 1 400px', borderColor: 'rgba(255, 69, 0, 0.3)', boxShadow: '0 0 30px rgba(255,69,0,0.1)' }}
+            style={{ flex: '1 1 400px', borderColor: 'rgba(255, 69, 0, 0.5)', boxShadow: '0 0 50px rgba(255,69,0,0.25), inset 0 0 20px rgba(255,69,0,0.1)' }}
             className="glass-card"
           >
-            <h3 style={{ color: 'var(--primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />
+            <h3 style={{ color: 'var(--primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textShadow: '0 0 15px rgba(255,69,0,0.6), 0 0 30px rgba(255,69,0,0.4)' }}>
+              <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 15px var(--primary)' }} />
               WisprType Dictation
             </h3>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: '1.1rem', color: '#fff', lineHeight: 1.6 }}>
