@@ -19,28 +19,27 @@ export function playFeedbackSound(type: 'start' | 'stop') {
   const now = audioCtx.currentTime;
 
   if (type === 'start') {
-    // Soothing ascending double blip (marimba-like)
+    // Very soft, soothing single bell tone (C5)
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(440, now); // A4
-    oscillator.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+    oscillator.frequency.setValueAtTime(523.25, now); // C5
     
+    // Slow, soft attack and very long release
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05); // gentle fade in
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4); // slow fade out
     
     oscillator.start(now);
-    oscillator.stop(now + 0.3);
+    oscillator.stop(now + 0.45);
   } else {
-    // Soothing descending double blip
+    // Very soft, soothing lower bell tone (G4)
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(659.25, now); // E5
-    oscillator.frequency.exponentialRampToValueAtTime(440, now + 0.15); // A4
+    oscillator.frequency.setValueAtTime(392.00, now); // G4
     
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
     
     oscillator.start(now);
-    oscillator.stop(now + 0.3);
+    oscillator.stop(now + 0.45);
   }
 }
