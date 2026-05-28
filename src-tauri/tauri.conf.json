@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Wisprtype V1 - Settings",
+        "title": "Wisprtype",
         "width": 800,
         "height": 600,
         "visible": false,

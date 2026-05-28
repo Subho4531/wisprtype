@@ -157,36 +157,35 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
   return (
     <group ref={group} position={[0, -0.2, 0]} scale={responsiveScale}>
       {/* Laptop Base */}
-      <mesh position={[0, 0, 0]} castShadow receiveShadow>
+      {/* <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[5, 0.1, 3.6]} />
         <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
-      </mesh>
+      </mesh> */}
       
       {/* Laptop Keyboard Area */}
-      <mesh position={[0, 0.06, 0]} receiveShadow>
+      {/* <mesh position={[0, 0.06, 0]} receiveShadow>
         <boxGeometry args={[4.6, 0.01, 1.8]} />
         <meshStandardMaterial color="#0d0d0d" />
-      </mesh>
+      </mesh> */}
       {/* Trackpad */}
-      <mesh position={[0, 0.06, 1.3]} receiveShadow>
+      {/* <mesh position={[0, 0.06, 1.3]} receiveShadow>
         <boxGeometry args={[1.4, 0.01, 0.8]} />
         <meshStandardMaterial color="#222" />
-      </mesh>
+      </mesh> */}
 
 
 
       {/* Laptop Screen / Hinge */}
       <group position={[0, 0.05, -1.8]} rotation={[-0.1, 0, 0]}>
         {/* Screen Bezel */}
-        <mesh position={[0, 1.6, 0]} castShadow>
+        {/* <mesh position={[0, 1.6, 0]} castShadow>
           <boxGeometry args={[5, 3.2, 0.1]} />
           <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
-        </mesh>
+        </mesh> */}
         
         {/* Screen Display */}
         <mesh position={[0, 1.6, 0.06]}>
-          <planeGeometry args={[4.8, 3.0]} />
-          <meshBasicMaterial color="#000" />
+          
           
           <Html 
             transform 
