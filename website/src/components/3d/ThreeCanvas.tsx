@@ -1,0 +1,312 @@
+'use client'
+
+import React, { useRef, useEffect, useState } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Environment, Float, Html, ContactShadows } from '@react-three/drei'
+import * as THREE from 'three'
+import { useSoundEffects } from '../../hooks/useSoundEffects'
+import WaveformCanvas from '../effects/WaveformCanvas'
+
+type AppState = 'speaking' | 'typing' | 'idle'
+
+const EXAMPLES = [
+  {
+    title: 'New Message - Outlook',
+    text: "Hey team,\n\nI've reviewed the latest design mockups and they look fantastic. Let's proceed with the final presentation.\n\nBest,\nAlex"
+  },
+  {
+    title: 'Notion - Project Notes',
+    text: "# Q3 Roadmap Meeting\n\n- Discussed upcoming features\n- Decided to prioritize mobile responsiveness\n- Action items assigned to the engineering team"
+  },
+  {
+    title: 'YouTube - Captions',
+    text: "Welcome back to the channel! Today we are going to dive deep into how you can use on-device AI to transcribe your audio completely offline and securely."
+  },
+  {
+    title: 'Messages',
+    text: "Hey! Are we still on for dinner tonight at 7? Let me know if you need me to pick up anything on the way there."
+  },
+  {
+    title: 'Word - Legal Document',
+    text: "CONFIDENTIALITY AGREEMENT\n\nThis Non-Disclosure Agreement is entered into by and between the undersigned parties to prevent the unauthorized disclosure of Confidential Information."
+  }
+]
+
+function GlowingMicButton({ isSpeaking, position = [0, 0, 0] }: { isSpeaking: boolean, position?: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <Html center transform position={[0, 0, 0]} scale={0.25}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle at 30% 30%, #ff4d4d, #b30000)',
+          border: '2px solid #800000',
+          boxShadow: isSpeaking ? 'inset 0 4px 6px rgba(255,255,255,0.6), inset 0 -4px 6px rgba(0,0,0,0.5), 0 0 30px rgba(255,0,0,0.8)' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transform: `scale(${isSpeaking ? 1.1 : 1})`,
+          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: isSpeaking ? 'pulseGlow 2s infinite alternate' : 'none',
+          opacity: isSpeaking ? 1 : 0,
+          pointerEvents: 'none'
+        }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))' }}>
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+        </div>
+        <style>{`
+          @keyframes pulseGlow {
+            0% { transform: scale(1.1); box-shadow: inset 0 4px 6px rgba(255,255,255,0.6), inset 0 -4px 6px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,0,0.6); }
+            100% { transform: scale(1.25); box-shadow: inset 0 4px 6px rgba(255,255,255,0.7), inset 0 -4px 6px rgba(0,0,0,0.6), 0 0 50px rgba(255,0,0,1); }
+          }
+        `}</style>
+      </Html>
+    </group>
+  )
+}
+
+function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, currentExampleIndex: number }) {
+  const group = useRef<THREE.Group>(null)
+  const { viewport } = useThree()
+  
+  // Scale up 10%
+  const responsiveScale = Math.min(0.277, viewport.width / 19)
+
+  // Rotate slowly based on mouse
+  useFrame((state) => {
+    if (group.current) {
+      group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, (state.mouse.x * Math.PI) / 6, 0.05)
+      group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, (state.mouse.y * Math.PI) / 10, 0.05)
+    }
+  })
+
+  return (
+    <group ref={group} position={[0, -0.2, 0]} scale={responsiveScale}>
+      {/* Laptop Base */}
+      <mesh position={[0, 0, 0]} castShadow receiveShadow>
+        <boxGeometry args={[5, 0.1, 3.6]} />
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </mesh>
+      
+      {/* Laptop Keyboard Area */}
+      <mesh position={[0, 0.06, 0]} receiveShadow>
+        <boxGeometry args={[4.6, 0.01, 1.8]} />
+        <meshStandardMaterial color="#0d0d0d" />
+      </mesh>
+      {/* Trackpad */}
+      <mesh position={[0, 0.06, 1.3]} receiveShadow>
+        <boxGeometry args={[1.4, 0.01, 0.8]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+
+
+
+      {/* Laptop Screen / Hinge */}
+      <group position={[0, 0.05, -1.8]} rotation={[-0.1, 0, 0]}>
+        {/* Screen Bezel */}
+        <mesh position={[0, 1.6, 0]} castShadow>
+          <boxGeometry args={[5, 3.2, 0.1]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+        </mesh>
+        
+        {/* Screen Display */}
+        <mesh position={[0, 1.6, 0.06]}>
+          <planeGeometry args={[4.8, 3.0]} />
+          <meshBasicMaterial color="#000" />
+          
+          <Html 
+            transform 
+            position={[0, 0, 0.01]} 
+            style={{ 
+              width: '600px', 
+              height: '375px', 
+              background: '#f9f9f9', // Windows 11 app background
+              borderRadius: '10px',
+              overflow: 'hidden',
+              border: '1px solid #c0c0c0',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5)',
+              boxSizing: 'border-box',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Windows 11 Title Bar */}
+            <div style={{
+              height: '36px',
+              background: '#f3f3f3',
+              borderBottom: '1px solid #e5e5e5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingLeft: '16px',
+              userSelect: 'none'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#111', fontSize: '13px', fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
+                <span style={{ fontWeight: 500 }}>{EXAMPLES[currentExampleIndex].title}</span>
+              </div>
+              <div style={{ display: 'flex', height: '100%' }}>
+                {/* Minimize */}
+                <div style={{ width: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="10" height="1" viewBox="0 0 10 1"><path d="M0 0h10v1H0z" fill="#000"/></svg>
+                </div>
+                {/* Maximize */}
+                <div style={{ width: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1h8v8H1V1zm1 1v6h6V2H2z" fill="#000"/></svg>
+                </div>
+                {/* Close */}
+                <div style={{ width: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.06 0L5 3.94 8.94 0 10 1.06 6.06 5 10 8.94 8.94 10 5 6.06 1.06 10 0 8.94 3.94 5 0 1.06z" fill="#000"/></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* App Content */}
+            <div style={{ padding: '24px', flex: 1, overflow: 'hidden' }}>
+              <TypingAnimation appState={appState} currentExampleIndex={currentExampleIndex} />
+            </div>
+
+            {/* Real WisprType Overlay Waveform (Small, above bottom edge) */}
+            <div style={{
+              position: 'absolute',
+              bottom: '20px',
+              left: '50%',
+              transform: `translateX(-50%)`,
+              width: '180px',
+              height: '40px',
+              background: 'rgba(20, 20, 20, 0.85)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '9999px',
+              overflow: 'hidden',
+              opacity: appState === 'speaking' ? 1 : 0,
+              transition: 'opacity 0.4s ease, transform 0.4s ease',
+              pointerEvents: 'none',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {appState === 'speaking' && (
+                <div style={{ width: '120px', height: '30px' }}>
+                  <WaveformCanvas barCount={16} />
+                </div>
+              )}
+            </div>
+
+          </Html>
+        </mesh>
+      </group>
+    </group>
+  )
+}
+
+function TypingAnimation({ appState, currentExampleIndex }: { appState: AppState, currentExampleIndex: number }) {
+  const [text, setText] = useState('')
+  const { playTypeSound } = useSoundEffects()
+  const currentIndexRef = useRef(0)
+  
+  const fullText = EXAMPLES[currentExampleIndex].text
+  
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+    
+    if (appState === 'speaking') {
+      setText('')
+      currentIndexRef.current = 0
+    } else if (appState === 'typing') {
+      const typeNextChar = () => {
+        if (currentIndexRef.current < fullText.length) {
+          setText(fullText.slice(0, currentIndexRef.current + 1))
+          currentIndexRef.current++
+          
+          timeoutId = setTimeout(typeNextChar, 8 + Math.random() * 15)
+        }
+      }
+      typeNextChar()
+    }
+    
+    return () => clearTimeout(timeoutId)
+  }, [appState, playTypeSound, fullText])
+
+  return (
+    <>
+      <div style={{ color: '#222', fontFamily: 'Segoe UI, sans-serif', fontSize: '20px', lineHeight: 1.6 }}>
+        <div style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+          {text}
+          <span style={{ 
+            display: 'inline-block', 
+            width: '2px', 
+            height: '20px', 
+            background: '#000', 
+            marginLeft: '4px',
+            verticalAlign: 'middle',
+            animation: appState === 'idle' ? 'blink 1s step-end infinite' : 'none',
+            opacity: appState === 'speaking' ? 0 : 1
+          }} />
+        </div>
+        
+        <style>{`
+          @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        `}</style>
+      </div>
+    </>
+  )
+}
+
+export default function ThreeCanvas() {
+  const [appState, setAppState] = useState<AppState>('speaking')
+  const [currentExampleIndex, setCurrentExampleIndex] = useState(0)
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+    
+    const runSequence = () => {
+      // 1. Speaking phase
+      setAppState('speaking')
+      
+      timeoutId = setTimeout(() => {
+        // 2. Typing phase
+        setAppState('typing')
+        
+        timeoutId = setTimeout(() => {
+          // 3. Idle phase
+          setAppState('idle')
+          
+          timeoutId = setTimeout(() => {
+            setCurrentExampleIndex((prev) => (prev + 1) % EXAMPLES.length)
+            runSequence() // loop back to speaking
+          }, 3500)
+        }, 3000)
+      }, 4000)
+    }
+    
+    runSequence()
+    return () => clearTimeout(timeoutId)
+  }, [])
+
+  return (
+    <Canvas camera={{ position: [0, 1.3, 7.5], fov: 45 }} dpr={[1, 1.5]} performance={{ min: 0.5 }}>
+      <React.Suspense fallback={<Html center style={{ color: '#FF4500', fontFamily: 'monospace' }}>Loading 3D...</Html>}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow />
+        <directionalLight position={[-10, 10, -5]} intensity={0.5} color="#FF4500" />
+        
+        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.2}>
+          <LaptopScene appState={appState} currentExampleIndex={currentExampleIndex} />
+        </Float>
+        
+        {/* 3D Mic Button placed outside the screen and laptop entirely */}
+        <GlowingMicButton isSpeaking={appState === 'speaking'} position={[0, -1.2, 1.2]} />
+        
+        <ContactShadows position={[0, -1.2, 0]} opacity={0.6} scale={15} blur={3} far={5} resolution={256} frames={1} />
+      </React.Suspense>
+    </Canvas>
+  )
+}
+
+

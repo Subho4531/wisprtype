@@ -24,7 +24,6 @@ dist-ssr
 *.sw?
 
 # Agentic / IDE Workspace Metadata
-/.agents/skills/tauri
+/.agents/
 /skills-lock.json
 /.antigravity
-
