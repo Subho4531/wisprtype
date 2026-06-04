@@ -9,6 +9,7 @@ export interface AppSettings {
   cloudProvider: "none" | "openai" | "gemini" | "openrouter" | "ollama";
   cloudModel: string;
   apiKey: string;
+  hasCompletedOnboarding: boolean;
 }
 
 export interface TranscriptionEntry {

@@ -11,4 +11,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cloudProvider: "openrouter",
   cloudModel: "google/gemini-2.5-flash",
   apiKey: "••••••••••••••••••••••••",
+  hasCompletedOnboarding: false,
 };

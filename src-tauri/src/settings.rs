@@ -23,6 +23,8 @@ pub struct AppSettings {
     pub cloud_model: String,
     #[serde(default, rename = "apiKey")]
     pub api_key: String,
+    #[serde(default, rename = "hasCompletedOnboarding")]
+    pub has_completed_onboarding: bool,
 }
 
 fn default_cloud_provider() -> String { "openrouter".to_string() }
@@ -41,6 +43,7 @@ impl Default for AppSettings {
             cloud_provider: "openrouter".to_string(),
             cloud_model: "google/gemini-2.5-flash".to_string(),
             api_key: "".to_string(),
+            has_completed_onboarding: false,
         }
     }
 }

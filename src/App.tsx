@@ -14,6 +14,7 @@ import { OverviewTab } from "./components/tabs/OverviewTab";
 import { HistoryTab } from "./components/tabs/HistoryTab";
 import { AnalyticsTab } from "./components/tabs/AnalyticsTab";
 import { SettingsTab } from "./components/tabs/SettingsTab";
+import { Onboarding } from "./components/Onboarding";
 import { OverlayState } from "./types";
 import { cn } from "./lib/utils";
 import { playFeedbackSound } from "./lib/audio";
@@ -122,6 +123,9 @@ function App() {
 
   return (
     <ToastProvider>
+      {settings.hasCompletedOnboarding === false && (
+        <Onboarding settings={settings} updateSetting={updateSetting} micOptions={micOptions} />
+      )}
       <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
         {/* Top Navigation Bar */}
         <div className="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-300">

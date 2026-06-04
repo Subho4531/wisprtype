@@ -38,7 +38,7 @@ export default function DownloadCTA() {
             lineHeight: 1.15,
           }}
         >
-          Ready to Type at the{' '}
+          Ready to Type at the <br/> {' '}
           <span
             style={{
               background: 'linear-gradient(135deg, #FF4500, #FFD700)',

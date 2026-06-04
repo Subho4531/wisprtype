@@ -31,7 +31,7 @@ export default function HowItWorks() {
       id="how-it-works"
       style={{
         padding: '8rem 0',
-        background: '#121212',
+        
       }}
     >
       <div
