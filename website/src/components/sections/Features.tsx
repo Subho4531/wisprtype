@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Mic, Zap, Globe, Brain, Shield, Sparkles, Terminal, Cpu, Lock } from 'lucide-react'
+import { Mic, Zap, Brain, Terminal, Cpu, Lock } from 'lucide-react'
 
 interface SpotlightCardProps {
   children: React.ReactNode

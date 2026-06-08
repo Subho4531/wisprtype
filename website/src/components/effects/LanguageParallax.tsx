@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import ParallaxWrapper from './ParallaxWrapper'
 
 const characters = [
   { char: 'A', lang: 'English' },
@@ -20,28 +19,30 @@ const characters = [
 
 export default function LanguageParallax() {
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100vh',
-      overflow: 'hidden',
-      pointerEvents: 'none',
-      zIndex: -1
-    }}>
+    <div
+      aria-hidden="true"
+      className="lang-parallax-field"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        zIndex: -1,
+      }}
+    >
       {characters.map((item, index) => {
-        // Randomize positions, offsets, and sizes deterministically based on index
         const left = `${(index * 13) % 90 + 5}%`
         const top = `${(index * 27) % 90 + 5}%`
         const size = `${(index % 3) * 2 + 3}rem`
-        const opacity = (index % 5 + 1) * 0.05 // Subtle 0.05 to 0.25
-        const offset = (index % 2 === 0 ? 1 : -1) * ((index % 4 + 1) * 40) // Parallax speeds
+        const opacity = (index % 5 + 1) * 0.04
+        const rotation = `${(index % 2 === 0 ? 1 : -1) * (index * 5)}deg`
 
         return (
-          <ParallaxWrapper 
-            key={index} 
-            offset={offset} 
+          <div
+            key={item.lang}
             className="lang-parallax-char"
             style={{
               position: 'absolute',
@@ -52,13 +53,21 @@ export default function LanguageParallax() {
               color: 'var(--text-secondary)',
               fontFamily: 'var(--font-heading)',
               fontWeight: 800,
-              userSelect: 'none'
+              transform: `rotate(${rotation}) translateZ(0)`,
+              userSelect: 'none',
             }}
           >
             {item.char}
-          </ParallaxWrapper>
+          </div>
         )
       })}
+      <style>{`
+        @media (max-width: 900px), (prefers-reduced-motion: reduce) {
+          .lang-parallax-field {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

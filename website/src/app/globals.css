@@ -146,7 +146,10 @@ a {
   border: 1px solid var(--glass-border);
   border-radius: 24px;
   padding: 2.5rem;
-  transition: all var(--duration-normal) var(--ease-premium);
+  transition:
+    transform var(--duration-normal) var(--ease-premium),
+    box-shadow var(--duration-normal) var(--ease-premium),
+    border-color var(--duration-normal) var(--ease-premium);
 }
 
 .glass-card:hover {
@@ -174,10 +177,13 @@ a {
   justify-content: center;
   gap: 0.6rem;
   box-shadow: 0 4px 20px rgba(255, 69, 0, 0.35);
-  transition: all var(--duration-normal) var(--ease-premium);
+  transition:
+    transform var(--duration-normal) var(--ease-premium),
+    box-shadow var(--duration-normal) var(--ease-premium);
   text-decoration: none;
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .btn-primary::before {
@@ -212,7 +218,10 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
   backdrop-filter: blur(8px);
   text-decoration: none;
 }
@@ -306,6 +315,18 @@ a {
 @media (max-width: 480px) {
   :root {
     --container-padding: 0 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
 

@@ -32,7 +32,7 @@ export default function FeedbackSection() {
         setStatus('error')
         setTimeout(() => setStatus('idle'), 3000)
       }
-    } catch (err) {
+    } catch {
       setStatus('error')
       setTimeout(() => setStatus('idle'), 3000)
     }
@@ -47,8 +47,8 @@ export default function FeedbackSection() {
           viewport={{ once: true }}
           style={{ textAlign: 'center', marginBottom: '3rem' }}
         >
-          <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>We'd Love Your <span className="gradient-text">Feedback</span></h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Help us improve WisprType. Let us know what features you want or any issues you've faced.</p>
+          <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>We&apos;d Love Your <span className="gradient-text">Feedback</span></h2>
+          <p style={{ color: 'var(--text-secondary)' }}>Help us improve WisprType. Let us know what features you want or any issues you&apos;ve faced.</p>
         </motion.div>
 
         <motion.form 

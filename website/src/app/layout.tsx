@@ -7,6 +7,7 @@ const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-ja
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space' })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://wisprtype.com'),
   title: 'WisprType — Your Voice, Perfectly Typed',
   description: 'Free voice-to-text for Windows. On-device Whisper AI, 50+ languages, 100% offline. Download now.',
   openGraph: {
@@ -22,6 +23,11 @@ export const metadata: Metadata = {
     title: 'WisprType — Your Voice, Perfectly Typed',
     description: 'Free voice-to-text for Windows powered by on-device Whisper AI.',
     images: ['/og-image.png'],
+  },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/icons/wisperflow.png',
   },
   robots: { index: true, follow: true },
 }

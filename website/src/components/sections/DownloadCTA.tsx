@@ -2,9 +2,36 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Download } from 'lucide-react'
+import { Download, ExternalLink } from 'lucide-react'
+import { WINDOWS_DOWNLOAD_PATH, type LatestRelease } from '@/lib/githubRelease'
 
-export default function DownloadCTA() {
+type DownloadCTAProps = {
+  release: LatestRelease | null
+}
+
+function formatPublishedDate(value: string) {
+  if (!value) {
+    return 'Latest build'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return 'Latest build'
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+export default function DownloadCTA({ release }: DownloadCTAProps) {
+  const downloadLabel = release ? 'Download Latest for Windows' : 'Download for Windows'
+  const releaseDetails = release
+    ? `${release.version} · ${release.assetSize} · Published ${formatPublishedDate(release.publishedAt)}`
+    : 'The latest Windows build will be served here as soon as it is published.'
+
   return (
     <section
       id="download"
@@ -78,7 +105,8 @@ export default function DownloadCTA() {
           transition={{ duration: 0.6, delay: 0.3, ease: 'easeOut' }}
         >
           <a
-            href="#download"
+            href={WINDOWS_DOWNLOAD_PATH}
+            aria-label={downloadLabel}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -105,9 +133,40 @@ export default function DownloadCTA() {
             }}
           >
             <Download size={22} strokeWidth={2.5} />
-            Download for Windows (.exe)
+            {downloadLabel}
           </a>
         </motion.div>
+
+        {release ? (
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.6, delay: 0.4, ease: 'easeOut' }}
+            style={{
+              fontSize: '0.9rem',
+              color: '#D6D6D6',
+              marginTop: '1.25rem',
+              wordBreak: 'break-word',
+            }}
+          >
+            {release.assetName}
+            {' · '}
+            <a
+              href={release.releaseUrl}
+              style={{
+                color: '#FF8C00',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                textDecoration: 'none',
+              }}
+            >
+              Release notes
+              <ExternalLink size={14} strokeWidth={2.25} />
+            </a>
+          </motion.p>
+        ) : null}
 
         {/* System Requirements */}
         <motion.p
@@ -146,7 +205,7 @@ export default function DownloadCTA() {
               fontWeight: 500,
             }}
           >
-            v1.0.0 · Latest Release
+            {releaseDetails}
           </span>
         </motion.div>
       </div>

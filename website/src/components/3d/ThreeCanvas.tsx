@@ -2,9 +2,8 @@
 
 import React, { useRef, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Environment, Float, Html, ContactShadows } from '@react-three/drei'
+import { Float, Html, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
-import { useSoundEffects } from '../../hooks/useSoundEffects'
 import WaveformCanvas from '../effects/WaveformCanvas'
 
 type AppState = 'speaking' | 'typing' | 'idle'
@@ -93,13 +92,17 @@ function GlowingMicButton({ isSpeaking, position = [0, 0, 0] }: { isSpeaking: bo
                 { delay: "-0.20s", peak: 18 },
                 { delay: "-0.45s", peak: 14 },
               ].map((bar, i) => (
-                <div key={i} style={{
-                  width: 3, height: 5,
-                  background: "rgba(255,255,255,0.95)",
-                  borderRadius: 2,
-                  animation: isSpeaking ? `barBounce 0.9s ease-in-out ${bar.delay} infinite` : "none",
-                  ["--peak" as any]: `${bar.peak}px`,
-                }} />
+                <div
+                  key={i}
+                  style={{
+                    width: 3,
+                    height: 5,
+                    background: "rgba(255,255,255,0.95)",
+                    borderRadius: 2,
+                    animation: isSpeaking ? `barBounce 0.9s ease-in-out ${bar.delay} infinite` : "none",
+                    '--peak': `${bar.peak}px`,
+                  } as React.CSSProperties & { '--peak': string }}
+                />
               ))}
             </div>
           </div>
@@ -193,9 +196,7 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
             style={{ 
               width: '600px', 
               height: '375px', 
-              background: 'rgba(20, 20, 20, 0.65)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
+              background: 'linear-gradient(180deg, rgba(24, 24, 24, 0.94), rgba(12, 12, 12, 0.9))',
               borderRadius: '12px',
               overflow: 'hidden',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -203,6 +204,7 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
               boxSizing: 'border-box',
               position: 'relative',
               display: 'flex',
+              willChange: 'transform',
               flexDirection: 'column'
             }}
           >
@@ -249,8 +251,7 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
               transform: `translateX(-50%)`,
               width: '180px',
               height: '40px',
-              background: 'rgba(20, 20, 20, 0.85)',
-              backdropFilter: 'blur(16px)',
+              background: 'rgba(20, 20, 20, 0.95)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '9999px',
               overflow: 'hidden',
@@ -278,31 +279,34 @@ function LaptopScene({ appState, currentExampleIndex }: { appState: AppState, cu
 
 function TypingAnimation({ appState, currentExampleIndex }: { appState: AppState, currentExampleIndex: number }) {
   const [text, setText] = useState('')
-  const { playTypeSound } = useSoundEffects()
   const currentIndexRef = useRef(0)
   
   const fullText = EXAMPLES[currentExampleIndex].text
   
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
     
     if (appState === 'speaking') {
-      setText('')
       currentIndexRef.current = 0
+      timeoutId = setTimeout(() => setText(''), 0)
     } else if (appState === 'typing') {
       const typeNextChar = () => {
         if (currentIndexRef.current < fullText.length) {
-          setText(fullText.slice(0, currentIndexRef.current + 1))
-          currentIndexRef.current++
+          currentIndexRef.current = Math.min(currentIndexRef.current + 2, fullText.length)
+          setText(fullText.slice(0, currentIndexRef.current))
           
-          timeoutId = setTimeout(typeNextChar, 8 + Math.random() * 15)
+          timeoutId = setTimeout(typeNextChar, 24 + Math.random() * 18)
         }
       }
-      typeNextChar()
+      timeoutId = setTimeout(typeNextChar, 24)
     }
     
-    return () => clearTimeout(timeoutId)
-  }, [appState, playTypeSound, fullText])
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [appState, fullText])
 
   return (
     <>
@@ -361,7 +365,12 @@ export default function ThreeCanvas() {
   }, [])
 
   return (
-    <Canvas camera={{ position: [0, 1.3, 7.5], fov: 45 }} dpr={[1, 1.5]} performance={{ min: 0.5 }}>
+    <Canvas
+      camera={{ position: [0, 1.3, 7.5], fov: 45 }}
+      dpr={[1, 1.25]}
+      performance={{ min: 0.5 }}
+      gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
+    >
       <React.Suspense fallback={<Html center style={{ color: '#FF4500', fontFamily: 'monospace' }}>Loading 3D...</Html>}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow />
@@ -374,10 +383,8 @@ export default function ThreeCanvas() {
         {/* 3D Mic Button placed outside the screen and laptop entirely */}
         <GlowingMicButton isSpeaking={appState === 'speaking'} position={[0, -1.2, 1.2]} />
         
-        <ContactShadows position={[0, -1.2, 0]} opacity={0.6} scale={15} blur={3} far={5} resolution={256} frames={1} />
+        <ContactShadows position={[0, -1.2, 0]} opacity={0.5} scale={12} blur={2.5} far={5} resolution={128} frames={1} />
       </React.Suspense>
     </Canvas>
   )
 }
-
-

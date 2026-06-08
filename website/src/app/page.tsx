@@ -10,8 +10,11 @@ import PricingTier from '../components/sections/PricingTier'
 import FeedbackSection from '../components/sections/FeedbackSection'
 import DownloadCTA from '../components/sections/DownloadCTA'
 import Footer from '../components/sections/Footer'
+import { getLatestRelease } from '../lib/githubRelease'
 
-export default function Home() {
+export default async function Home() {
+  const latestRelease = await getLatestRelease()
+
   return (
     <>
       <Header />
@@ -25,7 +28,7 @@ export default function Home() {
         <Testimonials />
         <PricingTier />
         <FeedbackSection />
-        <DownloadCTA />
+        <DownloadCTA release={latestRelease} />
       </main>
       <Footer />
     </>

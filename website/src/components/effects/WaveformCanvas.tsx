@@ -10,6 +10,7 @@ interface WaveformCanvasProps {
 const WaveformCanvas: React.FC<WaveformCanvasProps> = ({ className, barCount = 32 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
+  const sizeRef = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -18,28 +19,36 @@ const WaveformCanvas: React.FC<WaveformCanvasProps> = ({ className, barCount = 3
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let time = 0;
+    let isVisible = true;
+    let isRunning = true;
+
     const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
+      const pixelWidth = Math.round(width * dpr);
+      const pixelHeight = Math.round(height * dpr);
+
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sizeRef.current = { width, height };
     };
 
-    resize();
-    window.addEventListener('resize', resize);
-
-    let time = 0;
-
-    const animate = () => {
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
+    const drawFrame = () => {
+      const { width: w, height: h } = sizeRef.current;
+      if (w <= 1 || h <= 1) return;
 
       ctx.clearRect(0, 0, w, h);
-      
+
       // Highly fluid responsive time step
-      time += 0.04;
+      time += reducedMotion.matches ? 0 : 0.04;
 
       // Narrower multiplier for sleek and elegant bar structure
       const barWidth = Math.max(2, (w / barCount) * 0.38);
@@ -50,8 +59,6 @@ const WaveformCanvas: React.FC<WaveformCanvasProps> = ({ className, barCount = 3
 
       for (let i = 0; i < barCount; i++) {
         const x = gap + i * (barWidth + gap);
-        const centerX = barCount / 2;
-        const distFromCenter = Math.abs(i - centerX) / centerX;
         
         // Symmetrical envelope that keeps edges beautifully active
         const envelope = Math.sin((i / (barCount - 1)) * Math.PI) * 0.82 + 0.18;
@@ -106,15 +113,80 @@ const WaveformCanvas: React.FC<WaveformCanvasProps> = ({ className, barCount = 3
         ctx.fill();
         ctx.restore();
       }
+    };
+
+    resize();
+
+    const resizeObserver = new ResizeObserver(() => {
+      resize();
+      drawFrame();
+    });
+    resizeObserver.observe(canvas);
+
+    const stop = () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = 0;
+      }
+    };
+
+    const start = () => {
+      if (animFrameRef.current || !isRunning || reducedMotion.matches || !isVisible || document.hidden) {
+        return;
+      }
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animFrameRef.current = requestAnimationFrame(animate);
+    const animate = () => {
+      animFrameRef.current = 0;
+      if (!isRunning || reducedMotion.matches || !isVisible || document.hidden) {
+        return;
+      }
+
+      drawFrame();
+      start();
+    };
+
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) {
+        drawFrame();
+        start();
+      } else {
+        stop();
+      }
+    });
+
+    const handleDocumentVisibility = () => {
+      if (document.hidden) {
+        stop();
+      } else {
+        drawFrame();
+        start();
+      }
+    };
+
+    const handleReducedMotionChange = () => {
+      stop();
+      drawFrame();
+      start();
+    };
+
+    visibilityObserver.observe(canvas);
+    document.addEventListener('visibilitychange', handleDocumentVisibility);
+    reducedMotion.addEventListener('change', handleReducedMotionChange);
+
+    drawFrame();
+    start();
 
     return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animFrameRef.current);
+      isRunning = false;
+      stop();
+      resizeObserver.disconnect();
+      visibilityObserver.disconnect();
+      document.removeEventListener('visibilitychange', handleDocumentVisibility);
+      reducedMotion.removeEventListener('change', handleReducedMotionChange);
     };
   }, [barCount]);
 

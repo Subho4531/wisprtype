@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Download, ChevronRight, Globe, Zap, Shield } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -30,19 +30,85 @@ const stats = [
   { icon: <Shield size={16} />, label: '100% Offline' },
 ]
 
+function HeroSceneFallback() {
+  return (
+    <div className="hero-scene-fallback" aria-hidden="true">
+      <div className="hero-fallback-window">
+        <div className="hero-fallback-titlebar">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="hero-fallback-body">
+          <div className="hero-fallback-line hero-fallback-line-wide" />
+          <div className="hero-fallback-line" />
+          <div className="hero-fallback-line hero-fallback-line-short" />
+          <div className="hero-fallback-output">
+            <span>Voice captured locally</span>
+            <strong>Ready</strong>
+          </div>
+        </div>
+        <div className="hero-fallback-mic">
+          <span />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Hero() {
   const auroraRef = useRef<HTMLDivElement>(null)
+  const [showHeroScene, setShowHeroScene] = useState(false)
 
   useEffect(() => {
-    // Subtle mouse parallax on aurora
-    const handleMouse = (e: MouseEvent) => {
-      if (!auroraRef.current) return
-      const x = (e.clientX / window.innerWidth - 0.5) * 20
-      const y = (e.clientY / window.innerHeight - 0.5) * 20
-      auroraRef.current.style.transform = `translate(${x}px, ${y}px)`
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const desktopViewport = window.matchMedia('(min-width: 901px)')
+
+    if (reducedMotion.matches || !desktopViewport.matches) {
+      return
     }
+
+    const loadTimer = window.setTimeout(() => {
+      setShowHeroScene(true)
+    }, 800)
+
+    return () => window.clearTimeout(loadTimer)
+  }, [])
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const finePointer = window.matchMedia('(pointer: fine)')
+
+    if (reducedMotion.matches || !finePointer.matches) {
+      return
+    }
+
+    let animationFrame = 0
+    let targetX = 0
+    let targetY = 0
+
+    const updateAurora = () => {
+      animationFrame = 0
+      if (!auroraRef.current) return
+      auroraRef.current.style.transform = `translate3d(${targetX}px, ${targetY}px, 0)`
+    }
+
+    const handleMouse = (e: MouseEvent) => {
+      targetX = (e.clientX / window.innerWidth - 0.5) * 16
+      targetY = (e.clientY / window.innerHeight - 0.5) * 16
+
+      if (!animationFrame) {
+        animationFrame = requestAnimationFrame(updateAurora)
+      }
+    }
+
     window.addEventListener('mousemove', handleMouse)
-    return () => window.removeEventListener('mousemove', handleMouse)
+    return () => {
+      window.removeEventListener('mousemove', handleMouse)
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame)
+      }
+    }
   }, [])
 
   return (
@@ -61,7 +127,8 @@ export default function Hero() {
         position: 'absolute',
         inset: '-20%',
         zIndex: 0,
-        transition: 'transform 0.3s ease-out',
+        transition: 'transform 120ms ease-out',
+        willChange: 'transform',
       }}>
         <div style={{
           position: 'absolute',
@@ -69,10 +136,9 @@ export default function Hero() {
           left: '15%',
           width: '500px',
           height: '500px',
-          borderRadius: '50%',
-          background: 'rgba(255, 69, 0, 0.12)',
-          filter: 'blur(100px)',
+          background: 'radial-gradient(circle, rgba(255, 69, 0, 0.16) 0%, rgba(255, 69, 0, 0.08) 42%, transparent 70%)',
           animation: 'float 8s ease-in-out infinite',
+          willChange: 'transform',
         }} />
         <div style={{
           position: 'absolute',
@@ -80,10 +146,9 @@ export default function Hero() {
           right: '10%',
           width: '400px',
           height: '400px',
-          borderRadius: '50%',
-          background: 'rgba(255, 140, 0, 0.08)',
-          filter: 'blur(100px)',
+          background: 'radial-gradient(circle, rgba(255, 140, 0, 0.12) 0%, rgba(255, 140, 0, 0.06) 42%, transparent 70%)',
           animation: 'float 10s ease-in-out infinite reverse',
+          willChange: 'transform',
         }} />
         <div style={{
           position: 'absolute',
@@ -91,10 +156,9 @@ export default function Hero() {
           left: '40%',
           width: '350px',
           height: '350px',
-          borderRadius: '50%',
-          background: 'rgba(255, 215, 0, 0.06)',
-          filter: 'blur(100px)',
+          background: 'radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 42%, transparent 70%)',
           animation: 'float 12s ease-in-out infinite',
+          willChange: 'transform',
         }} />
       </div>
 
@@ -195,7 +259,7 @@ export default function Hero() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
         >
-          <HeroScene />
+          {showHeroScene ? <HeroScene /> : <HeroSceneFallback />}
         </motion.div>
       </div>
 
@@ -221,6 +285,96 @@ export default function Hero() {
            top: -20%;
            z-index: 100;
         }
+        .hero-scene-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
+        .hero-fallback-window {
+          position: relative;
+          width: min(560px, 68%);
+          min-width: 320px;
+          aspect-ratio: 16 / 10;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 18px;
+          background: linear-gradient(180deg, rgba(26,26,26,0.96), rgba(12,12,12,0.94));
+          box-shadow: 0 28px 80px rgba(0,0,0,0.42), 0 0 60px rgba(255,69,0,0.12);
+          overflow: hidden;
+          transform: rotateY(-12deg) rotateX(6deg);
+        }
+        .hero-fallback-titlebar {
+          height: 44px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 18px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.03);
+        }
+        .hero-fallback-titlebar span {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.2);
+        }
+        .hero-fallback-body {
+          padding: 34px;
+        }
+        .hero-fallback-line {
+          height: 16px;
+          width: 72%;
+          margin-bottom: 18px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+        }
+        .hero-fallback-line-wide {
+          width: 88%;
+        }
+        .hero-fallback-line-short {
+          width: 48%;
+        }
+        .hero-fallback-output {
+          margin-top: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 14px 18px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,69,0,0.24);
+          background: rgba(255,69,0,0.08);
+          color: rgba(255,255,255,0.78);
+          font-size: 0.95rem;
+        }
+        .hero-fallback-output strong {
+          color: #FFD700;
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+        .hero-fallback-mic {
+          position: absolute;
+          left: 50%;
+          bottom: -34px;
+          width: 76px;
+          height: 76px;
+          transform: translateX(-50%);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: radial-gradient(circle at 35% 30%, #FB923C, #C2410C);
+          box-shadow: 0 0 38px rgba(249,115,22,0.38);
+        }
+        .hero-fallback-mic span {
+          width: 20px;
+          height: 32px;
+          border: 2px solid rgba(255,255,255,0.9);
+          border-radius: 999px;
+        }
         @media (max-width: 900px) {
           .container {
             flex-direction: column !important;
@@ -236,6 +390,10 @@ export default function Hero() {
             top: auto !important;
             width: 100% !important;
             height: 500px !important;
+          }
+          .hero-fallback-window {
+            width: min(520px, 92%);
+            transform: none;
           }
         }
       `}</style>

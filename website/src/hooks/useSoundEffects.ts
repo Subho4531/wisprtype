@@ -2,6 +2,11 @@
 
 import { useCallback, useRef, useEffect } from 'react'
 
+type WindowWithWebkitAudio = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext
+  }
+
 export function useSoundEffects() {
   const audioCtxRef = useRef<AudioContext | null>(null)
 
@@ -9,7 +14,12 @@ export function useSoundEffects() {
     // Only initialize AudioContext on user interaction to comply with browser policies
     const initAudio = () => {
       if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const AudioContextConstructor =
+          window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext
+
+        if (AudioContextConstructor) {
+          audioCtxRef.current = new AudioContextConstructor()
+        }
       }
     }
     
