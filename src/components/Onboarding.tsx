@@ -173,6 +173,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ settings, updateSetting,
                       if (provider === "gemini") updates.cloudModel = "gemini-2.5-flash";
                       if (provider === "openrouter") updates.cloudModel = "google/gemini-2.5-flash";
                       if (provider === "ollama") updates.cloudModel = "llama3.2";
+                      if (provider === "groq") updates.cloudModel = "llama-3.1-8b-instant";
                       updateSetting(updates);
                     }}
                     className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 p-2.5 outline-none focus:border-orange-500 transition-colors"
@@ -183,6 +184,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ settings, updateSetting,
                     <option value="openai">OpenAI</option>
                     <option value="gemini">Google Gemini</option>
                     <option value="openrouter">OpenRouter (Free Models)</option>
+                    <option value="groq">Groq Cloud</option>
                   </select>
                 </div>
               </div>

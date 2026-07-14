@@ -27,7 +27,7 @@ export default function Comparison() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            The Old Way vs <span className="gradient-text">WisprType</span>
+            Stop Typing. <span className="gradient-text">Start Talking.</span>
           </motion.h2>
         </div>
 
@@ -49,15 +49,15 @@ export default function Comparison() {
               Manual Typing
             </h3>
             <div style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.8 }}>
-              I am tying to write an email but i keepp making typos and my hands hurt from being on the keyboard all day. Let me fix that word. No, that&apos;s not right. Delete delete delete. Okay, let me start over...
+              im tyrying to write an eamil but i keepp making typos and my wrists hurt from the keyboard. wait no thats wrong. backspace backspace backspace. ok let me just start the sentence over...
             </div>
             <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between' }}>
               <span>Speed: ~40 WPM</span>
-              <span>Errors: High</span>
+              <span>Accuracy: ~92%</span>
             </div>
           </motion.div>
 
-          {/* After */}
+          {/* Right Column: WisprType */}
           <motion.div 
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -70,7 +70,7 @@ export default function Comparison() {
               WisprType Dictation
             </h3>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: '1.1rem', color: '#fff', lineHeight: 1.6 }}>
-              &quot;I&apos;m writing an email effortlessly. My hands are resting, the AI is handling the punctuation, and I can express my thoughts at the exact speed they occur to me.&quot;
+              &quot;Hey, can you send over the Q3 numbers before end of day? Thanks so much.&quot; — typed, punctuated, and sitting in the field before you&apos;ve lifted a finger.
             </div>
             <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', color: 'var(--highlight)', fontWeight: 600 }}>
               <span>Speed: ~150 WPM</span>

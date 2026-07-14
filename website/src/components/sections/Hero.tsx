@@ -1,11 +1,9 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Download, ChevronRight, Globe, Zap, Shield } from 'lucide-react'
-import dynamic from 'next/dynamic'
-
-const HeroScene = dynamic(() => import('../3d/ThreeCanvas'), { ssr: false })
+import AppPreview from '../app-preview/AppPreview'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -30,50 +28,8 @@ const stats = [
   { icon: <Shield size={16} />, label: '100% Offline' },
 ]
 
-function HeroSceneFallback() {
-  return (
-    <div className="hero-scene-fallback" aria-hidden="true">
-      <div className="hero-fallback-window">
-        <div className="hero-fallback-titlebar">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="hero-fallback-body">
-          <div className="hero-fallback-line hero-fallback-line-wide" />
-          <div className="hero-fallback-line" />
-          <div className="hero-fallback-line hero-fallback-line-short" />
-          <div className="hero-fallback-output">
-            <span>Voice captured locally</span>
-            <strong>Ready</strong>
-          </div>
-        </div>
-        <div className="hero-fallback-mic">
-          <span />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function Hero() {
   const auroraRef = useRef<HTMLDivElement>(null)
-  const [showHeroScene, setShowHeroScene] = useState(false)
-
-  useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const desktopViewport = window.matchMedia('(min-width: 901px)')
-
-    if (reducedMotion.matches || !desktopViewport.matches) {
-      return
-    }
-
-    const loadTimer = window.setTimeout(() => {
-      setShowHeroScene(true)
-    }, 800)
-
-    return () => window.clearTimeout(loadTimer)
-  }, [])
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -191,7 +147,7 @@ export default function Hero() {
             marginBottom: '2rem',
           }}>
             <span style={{ fontSize: '1rem' }}>✨</span>
-            Now Available for Windows
+            Now on Windows — Free to Download
           </motion.div>
 
           {/* Headline */}
@@ -208,8 +164,9 @@ export default function Hero() {
             lineHeight: 1.7,
             marginBottom: '2.5rem',
           }}>
-            WisprType uses on-device Whisper AI to transcribe your voice
-            instantly — in 50+ languages. Speak naturally, type effortlessly.
+            On-device Whisper AI turns speech into clean, formatted text the
+            moment you stop talking — in 50+ languages, without a single byte
+            leaving your machine.
           </motion.p>
 
           {/* CTA Group */}
@@ -252,14 +209,23 @@ export default function Hero() {
           </motion.div>
         </motion.div>
 
-        {/* Right Side — 3D Scene */}
+        {/* Right Side — App Preview */}
         <motion.div
           className="hero-scene-wrapper"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
         >
-          {showHeroScene ? <HeroScene /> : <HeroSceneFallback />}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
+            <AppPreview />
+            <span style={{
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.02em',
+            }}>
+              Your dashboard, the moment you open it.
+            </span>
+          </div>
         </motion.div>
       </div>
 
@@ -278,102 +244,11 @@ export default function Hero() {
       {/* Responsive overrides */}
       <style>{`
         .hero-scene-wrapper {
-           position: absolute;
-           right: -25%;
-           width: 80%;
-           height: 140%;
-           top: -20%;
-           z-index: 100;
-        }
-        .hero-scene-fallback {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          pointer-events: none;
-        }
-        .hero-fallback-window {
-          position: relative;
-          width: min(560px, 68%);
-          min-width: 320px;
-          aspect-ratio: 16 / 10;
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 18px;
-          background: linear-gradient(180deg, rgba(26,26,26,0.96), rgba(12,12,12,0.94));
-          box-shadow: 0 28px 80px rgba(0,0,0,0.42), 0 0 60px rgba(255,69,0,0.12);
-          overflow: hidden;
-          transform: rotateY(-12deg) rotateX(6deg);
-        }
-        .hero-fallback-titlebar {
-          height: 44px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 0 18px;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.03);
-        }
-        .hero-fallback-titlebar span {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.2);
-        }
-        .hero-fallback-body {
-          padding: 34px;
-        }
-        .hero-fallback-line {
-          height: 16px;
-          width: 72%;
-          margin-bottom: 18px;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
-        }
-        .hero-fallback-line-wide {
-          width: 88%;
-        }
-        .hero-fallback-line-short {
-          width: 48%;
-        }
-        .hero-fallback-output {
-          margin-top: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 14px 18px;
-          border-radius: 999px;
-          border: 1px solid rgba(255,69,0,0.24);
-          background: rgba(255,69,0,0.08);
-          color: rgba(255,255,255,0.78);
-          font-size: 0.95rem;
-        }
-        .hero-fallback-output strong {
-          color: #FFD700;
-          font-size: 0.8rem;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-        .hero-fallback-mic {
-          position: absolute;
-          left: 50%;
-          bottom: -34px;
-          width: 76px;
-          height: 76px;
-          transform: translateX(-50%);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: radial-gradient(circle at 35% 30%, #FB923C, #C2410C);
-          box-shadow: 0 0 38px rgba(249,115,22,0.38);
-        }
-        .hero-fallback-mic span {
-          width: 20px;
-          height: 32px;
-          border: 2px solid rgba(255,255,255,0.9);
-          border-radius: 999px;
+           flex: 0 0 45%;
+           max-width: 45%;
+           display: flex;
+           align-items: center;
+           justify-content: center;
         }
         @media (max-width: 900px) {
           .container {
@@ -385,15 +260,9 @@ export default function Hero() {
             max-width: 100% !important;
           }
           .hero-scene-wrapper {
-            position: relative !important;
-            right: auto !important;
-            top: auto !important;
-            width: 100% !important;
-            height: 500px !important;
-          }
-          .hero-fallback-window {
-            width: min(520px, 92%);
-            transform: none;
+            flex: 1 1 100% !important;
+            max-width: 100% !important;
+            margin-top: 2rem;
           }
         }
       `}</style>

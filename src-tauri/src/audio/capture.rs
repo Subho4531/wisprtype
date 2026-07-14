@@ -1,6 +1,7 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use tokio::sync::mpsc;
 
+#[allow(deprecated)]
 pub fn list_input_devices() -> Result<Vec<String>, String> {
     let host = cpal::default_host();
     let devices = host.input_devices().map_err(|e| format!("Failed to get input devices: {}", e))?;
@@ -29,6 +30,7 @@ pub struct ActiveRecorder {
 impl ActiveRecorder {
     /// Starts recording from the default audio input device.
     /// Spawns a background thread through cpal and sends chunks via the provided sender.
+    #[allow(deprecated)]
     pub fn start(sender: mpsc::UnboundedSender<Vec<f32>>, device_name: Option<&str>) -> Result<Self, String> {
         let host = cpal::default_host();
         

@@ -50,7 +50,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 mb-24 transition-colors p-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors p-4">
       {/* Audio Engine Configuration */}
       <Card title="Audio Hardware Interfaces">
         <div className="space-y-6 mt-4">
@@ -108,6 +108,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 if (provider === "gemini") updates.cloudModel = "gemini-2.5-flash";
                 if (provider === "openrouter") updates.cloudModel = "google/gemini-2.5-flash";
                 if (provider === "ollama") updates.cloudModel = "llama3.2";
+                if (provider === "groq") updates.cloudModel = "llama-3.1-8b-instant";
                 updateSetting(updates);
               }}
               className="w-full bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 p-2 rounded"
@@ -117,6 +118,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               <option value="openai">OpenAI</option>
               <option value="gemini">Google Gemini</option>
               <option value="openrouter">OpenRouter (Free Models)</option>
+              <option value="groq">Groq Cloud</option>
             </select>
           </div>
           {settings.cloudProvider !== "none" && (
@@ -149,6 +151,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <>
                     <option value="llama3.2">Llama 3.2 (Local)</option>
                     <option value="qwen2.5">Qwen 2.5 (Local)</option>
+                  </>
+                )}
+                {settings.cloudProvider === "groq" && (
+                  <>
+                    <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
+                    <option value="llama3-70b-8192">Llama 3 70B</option>
                   </>
                 )}
               </select>

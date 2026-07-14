@@ -1,13 +1,11 @@
 import type { NextConfig } from "next";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const configDir = dirname(fileURLToPath(import.meta.url));
+import path from "path";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: configDir,
+    root: path.resolve(__dirname, '..'),
   },
+  outputFileTracingRoot: path.resolve(__dirname, '..'),
 };
 
 export default nextConfig;

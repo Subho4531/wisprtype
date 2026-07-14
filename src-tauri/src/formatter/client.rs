@@ -9,7 +9,9 @@ pub async fn refine_text_llm(
     model: &str,
     api_key: &str,
 ) -> Result<String, String> {
-    if provider != "ollama" && api_key.trim().is_empty() {
+    let active_api_key = api_key.to_string();
+
+    if provider != "ollama" && active_api_key.trim().is_empty() {
         return Err("API Key is empty. Please enter a valid Cloud API Key in settings.".to_string());
     }
 
@@ -36,7 +38,7 @@ pub async fn refine_text_llm(
         "gemini" => {
             // Using Google Gemini endpoint (Google AI Studio)
             (
-                format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key),
+                format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, active_api_key),
                 json!({
                     "contents": [
                         { "role": "user", "parts": [{ "text": text }] }
@@ -62,7 +64,25 @@ pub async fn refine_text_llm(
                     ],
                     "temperature": 0.1
                 }),
-                Some(format!("Bearer {}", api_key))
+                Some(format!("Bearer {}", active_api_key))
+            )
+        }
+        "groq" => {
+            (
+                "https://api.groq.com/openai/v1/chat/completions".to_string(),
+                json!({
+                    "model": model,
+                    "messages": [
+                        { "role": "system", "content": system_prompt },
+                        { "role": "user", "content": text }
+                    ],
+                    "temperature": 1.0,
+                    "max_completion_tokens": 1024,
+                    "top_p": 1.0,
+                    "stream": false,
+                    "stop": null
+                }),
+                Some(format!("Bearer {}", active_api_key))
             )
         }
         "openai" | _ => {
@@ -76,7 +96,7 @@ pub async fn refine_text_llm(
                     ],
                     "temperature": 0.1
                 }),
-                Some(format!("Bearer {}", api_key))
+                Some(format!("Bearer {}", active_api_key))
             )
         }
     };

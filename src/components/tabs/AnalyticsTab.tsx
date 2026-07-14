@@ -35,7 +35,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ history }) => {
 
 
   return (
-    <div className="grid grid-cols-1 gap-px bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 mb-24 transition-colors">
+    <div className="grid grid-cols-1 gap-px bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors">
       <Card title="Word Frequency Analytics" className="min-h-[600px]">
         <div className="mt-4">
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-6">

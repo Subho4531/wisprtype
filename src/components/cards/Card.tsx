@@ -32,7 +32,7 @@ export function Card({
         </div>
       )}
 
-      <div className="relative z-10 w-full h-full">
+      <div className="relative z-10 w-full flex flex-col flex-grow min-h-0">
         {children}
       </div>
     </div>

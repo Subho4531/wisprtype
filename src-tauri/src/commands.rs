@@ -484,6 +484,44 @@ fn trim_silence(samples: &[f32], sample_rate: u32) -> &[f32] {
     &samples[start..end]
 }
 
+fn create_wav_bytes(samples: &[f32], sample_rate: u32) -> Vec<u8> {
+    let mut spec = Vec::new();
+    let num_samples = samples.len();
+    let num_channels = 1u16;
+    let bits_per_sample = 16u16;
+    let block_align = num_channels * bits_per_sample / 8;
+    let byte_rate = sample_rate * block_align as u32;
+    let subchunk2_size = (num_samples * block_align as usize) as u32;
+    let chunk_size = 36 + subchunk2_size;
+
+    // RIFF header
+    spec.extend_from_slice(b"RIFF");
+    spec.extend_from_slice(&chunk_size.to_le_bytes());
+    spec.extend_from_slice(b"WAVE");
+
+    // fmt subchunk
+    spec.extend_from_slice(b"fmt ");
+    spec.extend_from_slice(&16u32.to_le_bytes()); // Subchunk1Size
+    spec.extend_from_slice(&1u16.to_le_bytes());  // AudioFormat (1 = PCM)
+    spec.extend_from_slice(&num_channels.to_le_bytes());
+    spec.extend_from_slice(&sample_rate.to_le_bytes());
+    spec.extend_from_slice(&byte_rate.to_le_bytes());
+    spec.extend_from_slice(&block_align.to_le_bytes());
+    spec.extend_from_slice(&bits_per_sample.to_le_bytes());
+
+    // data subchunk
+    spec.extend_from_slice(b"data");
+    spec.extend_from_slice(&subchunk2_size.to_le_bytes());
+
+    // write samples
+    for &sample in samples {
+        let val = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
+        spec.extend_from_slice(&val.to_le_bytes());
+    }
+
+    spec
+}
+
 async fn process_recording(
     app: AppHandle,
     mut samples: Vec<f32>,
@@ -504,20 +542,65 @@ async fn process_recording(
     let settings = cached.0.read().unwrap().clone();
 
     // 2. Ensure speech model is present in directory, downloading it if missing
-    let model_path = crate::whisper::models::ensure_model_exists(&app, &settings.whisper_model).await?;
-    let model_path_owned = model_path.clone();
+    // let model_path = crate::whisper::models::ensure_model_exists(&app, &settings.whisper_model).await?;
+    // let model_path_owned = model_path.clone();
 
     // 3. Transcribe audio offline via whisper-rs
-    let whisper_state = app.state::<crate::whisper::engine::SharedWhisperState>();
-    let context_arc = whisper_state.context.clone();
+    // let whisper_state = app.state::<crate::whisper::engine::SharedWhisperState>();
+    // let context_arc = whisper_state.context.clone();
 
-    let raw_text = tokio::task::spawn_blocking(move || {
-        let temp_state = crate::whisper::engine::SharedWhisperState { context: context_arc };
-        crate::whisper::engine::transcribe(&temp_state, &model_path_owned, &samples_owned)
-    })
-    .await
-    .map_err(|e| format!("Whisper task panicked: {}", e))?
-    .map_err(|e| e)?;
+    // let raw_text = tokio::task::spawn_blocking(move || {
+    //     let temp_state = crate::whisper::engine::SharedWhisperState { context: context_arc };
+    //     crate::whisper::engine::transcribe(&temp_state, &model_path_owned, &samples_owned)
+    // })
+    // .await
+    // .map_err(|e| format!("Whisper task panicked: {}", e))?
+    // .map_err(|e| e)?;
+    
+    let wav_bytes = create_wav_bytes(&samples_owned, 16000);
+    let groq_api_key = std::env::var("GROQ_API_KEY")
+        .unwrap_or_else(|_| get_embedded_groq_key());
+
+    let mut raw_text = String::new();
+    let mut groq_success = false;
+
+    // Try Groq Whisper Turbo API first
+    if !groq_api_key.is_empty() {
+        println!("Attempting transcription via Groq API...");
+        match transcribe_via_groq(&app, wav_bytes, &groq_api_key).await {
+            Ok(text) => {
+                raw_text = text;
+                groq_success = true;
+            }
+            Err(e) => {
+                eprintln!("Groq transcription failed: {}. Falling back to local Whisper.", e);
+            }
+        }
+    } else {
+        eprintln!("Groq API key is empty. Falling back to local Whisper.");
+    }
+
+    if !groq_success {
+        println!("Transcribing locally using Whisper model: {}...", settings.whisper_model);
+        // Ensure speech model is present in directory, downloading it if missing
+        let model_path = crate::whisper::models::ensure_model_exists(&app, &settings.whisper_model).await?;
+        let model_path_owned = model_path.clone();
+
+        // Transcribe audio offline via whisper-rs
+        let whisper_state = app.state::<crate::whisper::engine::SharedWhisperState>();
+        let context_arc = whisper_state.context.clone();
+
+        let local_text = tokio::task::spawn_blocking(move || {
+            let temp_state = crate::whisper::engine::SharedWhisperState { context: context_arc };
+            crate::whisper::engine::transcribe(&temp_state, &model_path_owned, &samples_owned)
+        })
+        .await
+        .map_err(|e| format!("Whisper task panicked: {}", e))?
+        .map_err(|e| e)?;
+
+        raw_text = local_text;
+    }
+
     if raw_text.trim().is_empty() {
         return Err("Speech not recognized. Please speak closer to your microphone.".to_string());
     }
@@ -615,4 +698,52 @@ pub fn stop_recording(
 #[tauri::command]
 pub fn is_recording(recorder: State<'_, AudioRecorder>) -> Result<bool, String> {
     recorder.is_recording()
+}
+
+fn get_embedded_groq_key() -> String {
+    // Baked in at compile time from the GROQ_API_KEY env var present in the
+    // build environment. Never store the key value in source control —
+    // pass it via env when invoking `cargo build` / `tauri build` instead.
+    option_env!("GROQ_API_KEY").unwrap_or("").to_string()
+}
+
+async fn transcribe_via_groq(app: &AppHandle, wav_bytes: Vec<u8>, groq_api_key: &str) -> Result<String, String> {
+    let http_client = app.state::<std::sync::Arc<reqwest::Client>>();
+
+    let part = reqwest::multipart::Part::bytes(wav_bytes)
+        .file_name("audio.wav")
+        .mime_str("audio/wav")
+        .map_err(|e| format!("Failed to create multipart audio part: {}", e))?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("model", "whisper-large-v3-turbo")
+        .text("temperature", "0")
+        .text("response_format", "verbose_json")
+        .part("file", part);
+
+    let response = http_client
+        .post("https://api.groq.com/openai/v1/audio/transcriptions")
+        .header("Authorization", format!("Bearer {}", groq_api_key))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send audio to Groq API: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let err_body = response.text().await.unwrap_or_default();
+        return Err(format!("Groq API error ({}): {}", status, err_body));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GroqResponse {
+        text: String,
+    }
+
+    let groq_res: GroqResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Groq API response: {}", e))?;
+
+    Ok(groq_res.text)
 }

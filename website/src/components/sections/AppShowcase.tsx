@@ -35,7 +35,7 @@ export default function AppShowcase() {
             letterSpacing: '-1px',
           }}
         >
-          Experience the Magic
+          Always One Hotkey Away
         </motion.h2>
 
         {/* Subheading */}
@@ -53,7 +53,8 @@ export default function AppShowcase() {
             lineHeight: 1.6,
           }}
         >
-          See WisprType&apos;s live waveform visualization in action
+          A minimal floating overlay tracks your voice in real time — no
+          window to switch to, no app to alt-tab into.
         </motion.p>
 
         {/* Waveform Container */}
@@ -94,8 +95,8 @@ export default function AppShowcase() {
             lineHeight: 1.7,
           }}
         >
-          The floating overlay appears when you activate WisprType, showing real-time audio visualization
-          with state-aware animations.
+          It appears the instant you start speaking, tracks your input level
+          live, and disappears the moment your text lands.
         </motion.p>
       </div>
     </section>

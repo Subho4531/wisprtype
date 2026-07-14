@@ -16,7 +16,7 @@ const HistoryEntryCard = ({ entry, deleteEntry, copyToClipboard }: { entry: Tran
   const isLongText = entry.text.length > 150;
   
   return (
-    <div className={`border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 bg-zinc-50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-800 shadow-sm transition-colors group flex flex-col justify-between ${expanded ? 'h-auto min-h-[12rem]' : 'h-48'}`}>
+    <div className={`border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 bg-zinc-50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-800 shadow-sm transition-colors group flex flex-col justify-between h-auto min-h-[13rem]`}>
       <div>
         <div className="flex justify-between items-center mb-3">
           <span className="text-xs text-zinc-500 dark:text-zinc-400">{entry.timestamp}</span>
@@ -85,7 +85,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ history, loadHistory }) 
   };
 
   return (
-    <div className="grid grid-cols-1 gap-px bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 mb-24 transition-colors">
+    <div className="grid grid-cols-1 gap-px bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors">
       <Card title="Transcription Archive" className="min-h-[600px]">
         <div className="mt-4 flex flex-col gap-4">
           <div className="relative mb-4">

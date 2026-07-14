@@ -6,7 +6,7 @@ export interface AppSettings {
   microphoneDevice: string;
   gain: number;
   whisperModel: string;
-  cloudProvider: "none" | "openai" | "gemini" | "openrouter" | "ollama";
+  cloudProvider: "none" | "openai" | "gemini" | "openrouter" | "ollama" | "groq";
   cloudModel: string;
   apiKey: string;
   hasCompletedOnboarding: boolean;
