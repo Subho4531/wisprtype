@@ -141,7 +141,7 @@ function App() {
                 WisprType
               </h1>
               <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 font-semibold tracking-widest uppercase">
-                V 1.0
+                V 2.0.1
               </span>
             </div>
           </div>
